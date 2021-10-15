@@ -10,7 +10,7 @@ export interface Expression {
 }
 
 // This expression type is atomic in nature. It has no reference to any other Expression.
-export class Literal implements Expression {
+export class LiteralExpression implements Expression {
   value: any;
 
   constructor(value: any) {
@@ -22,7 +22,7 @@ export class Literal implements Expression {
   }
 }
 
-export class Unary implements Expression {
+export class UnaryExpression implements Expression {
   operator: Token;
   right: Expression;
 
@@ -36,7 +36,7 @@ export class Unary implements Expression {
   }
 }
 
-export class Binary implements Expression {
+export class BinaryExpression implements Expression {
   left: Expression;
   operator: Token;
   right: Expression;
@@ -52,7 +52,7 @@ export class Binary implements Expression {
   }
 }
 
-export class Grouping implements Expression {
+export class GroupingExpression implements Expression {
   expression: Expression;
 
   constructor(expression: Expression) {
