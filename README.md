@@ -1,3 +1,3 @@
 # Tox
 
-Lox but in Typescript.
+Interpreter for the Lox programming language in Typescript.
