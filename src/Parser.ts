@@ -196,6 +196,7 @@ export default class Parser {
     return expression;
   }
 
+  // Calling this will return you an Expression node, chained together by different expressions defined within the system.
   expression(): Expression {
     // Lowest precedence call.
     // IMPORTANT: Each recursive call may progress this.currentIndex. This means that once the function callstack
@@ -203,5 +204,13 @@ export default class Parser {
     //            the function that made a recursive call will have it's context altered, as this.currentIndex may
     //            get changed in the other functions.
     return this.equality();
+  }
+
+  parse(): Expression | undefined {
+    try {
+      return this.expression();
+    } catch (err) {
+      return;
+    }
   }
 }
