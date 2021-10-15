@@ -173,10 +173,10 @@ export default class Scanner {
   private scanChar(): void {
     // At each scanChar call, we are going to be dealing with a new lexeme, and therefore new startIndex.
     this.startIndex = this.currentIndex;
+    // We retrieve the current character before advancing to the next.
+    const char = this.current();
     // NOTE: Each time this.advance method is called, this.currentIndex is going to point to the next character.
-    // NOTE: When you call this.match or this.current after this line, all operations will be done on the next
-    //       character in this.source.
-    const char = this.advance();
+    this.advance();
 
     switch (char) {
       case "(": {

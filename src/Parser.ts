@@ -31,6 +31,7 @@ import Token from "./Token.ts";
 // From the diagram and the three steps you can see that the stack needs to be expanded till we hit
 // the bottom of the expression and then bubble back up. The bottom of the expression will be the
 // operations with the highest precidence. As you can see "/" has a higher precidence over "-".
+// NOTE: By building up the stack, we can actually look ahead in time and get back to where we were with more information.
 
 export default class Parser {
   private tokens: Token[];
@@ -67,12 +68,10 @@ export default class Parser {
     return false;
   }
 
-  private advance(): Token {
-    const token = this.current();
+  private advance(): void {
     if (!this.isAtEnd()) {
       ++this.currentIndex;
     }
-    return token;
   }
 
   private consume(type: TokenType, message: string): void {
@@ -80,16 +79,19 @@ export default class Parser {
       this.advance();
       return;
     }
-
     throw new Error(message);
   }
 
   // Highest precedence-- Precedence value: 6.
   private primary(): Expression {
+    // NOTE: match consumes the token if it matches.
     if (this.match(TokenType.FALSE)) return new LiteralExpression(false);
+    // NOTE: match consumes the token if it matches.
     if (this.match(TokenType.TRUE)) return new LiteralExpression(false);
+    // NOTE: match consumes the token if it matches.
     if (this.match(TokenType.NIL)) return new LiteralExpression(false);
 
+    // NOTE: match consumes the token if it matches.
     if (this.match(TokenType.NUMBER, TokenType.STRING)) {
       return new LiteralExpression((this.previous().literal));
     }
@@ -108,6 +110,7 @@ export default class Parser {
 
   // Precedence value: 5
   private unary(): Expression {
+    // NOTE: match consumes the token if it matches.
     if (this.match(TokenType.BANG, TokenType.MINUS)) {
       const operator = this.previous();
       const right = this.unary();
@@ -122,6 +125,7 @@ export default class Parser {
     // Peeling the precedence layer and calling a method with higher precedence to see if we can get any expression from it.
     let expression = this.unary();
 
+    // NOTE: match consumes the token if it matches.
     while (this.match(TokenType.SLASH, TokenType.STAR)) {
       const operator = this.previous();
       const right = this.unary();
@@ -136,6 +140,7 @@ export default class Parser {
     // Peeling the precedence layer and calling a method with higher precedence to see if we can get any expression from it.
     let expression = this.factor();
 
+    // NOTE: match consumes the token if it matches.
     while (this.match(TokenType.MINUS, TokenType.PLUS)) {
       const operator = this.previous();
       const right = this.factor();
@@ -151,6 +156,7 @@ export default class Parser {
     let expression = this.term();
 
     while (
+      // NOTE: match consumes the token if it matches.
       this.match(
         TokenType.GREATER,
         TokenType.GREATER_EQUAL,
@@ -171,6 +177,7 @@ export default class Parser {
     // Peeling the precedence layer and calling a method with higher precedence to see if we can get any expression from it.
     let expression = this.comparison();
 
+    // NOTE: match consumes the token if it matches.
     while (this.match(TokenType.BANG_EQUAL, TokenType.EQUAL_EQUAL)) {
       const operator = this.previous();
       const right = this.comparison();
@@ -182,6 +189,10 @@ export default class Parser {
 
   expression(): Expression {
     // Lowest precedence call.
+    // IMPORTANT: Each recursive call may progress this.currentIndex. This means that once the function callstack
+    //            unwinds back as the recursion calls ends, this.currentIndex may be altered. This means that when
+    //            the function that made a recursive call will have it's context altered, as this.currentIndex may
+    //            get changed in the other functions.
     return this.equality();
   }
 }
