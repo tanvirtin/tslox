@@ -3,7 +3,7 @@ import Scanner from "../src/Scanner.ts";
 import { assertEquals } from "https://deno.land/std@0.110.0/testing/asserts.ts";
 
 Deno.test("scan", () => {
-  const testTable: Record<string, string[]> = {
+  const assertionTable: Record<string, string[]> = {
     "(": ["<Token type=LEFT_PAREN lexeme=( />"],
     ")": ["<Token type=RIGHT_PAREN lexeme=) />"],
     "{": ["<Token type=LEFT_BRACE lexeme={ />"],
@@ -57,8 +57,8 @@ Deno.test("scan", () => {
     "var": ["<Token type=VAR lexeme=var />"],
     "while": ["<Token type=WHILE lexeme=while />"],
   };
-  for (const source in testTable) {
-    const expectedTokenStrings = testTable[source];
+  for (const source in assertionTable) {
+    const expectedTokenStrings = assertionTable[source];
     const scanner = new Scanner(source);
     const tokens = scanner.scanSource();
     for (let i = 0; i < tokens.length - 1; ++i) {

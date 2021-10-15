@@ -109,8 +109,13 @@ export default class Parser {
   }
 
   // Precedence value: 5
+  // Exampls of unary expressions: !true, - 3, etc.
+  // NOTE: Since the precedence of unary expressions are so low, that almost always unless the unary
+  //       expression is literally the first token the parser identifies, it is going to be very hard
+  //       to match this expression. A term will in most cases be caught instead.
   private unary(): Expression {
     // NOTE: match consumes the token if it matches.
+    // You can't chain unary expressions.
     if (this.match(TokenType.BANG, TokenType.MINUS)) {
       const operator = this.previous();
       const right = this.unary();
@@ -126,6 +131,7 @@ export default class Parser {
     let expression = this.unary();
 
     // NOTE: match consumes the token if it matches.
+    // NOTE: While loop is necessary because you can have expressions such as (1 * 2 / 2).
     while (this.match(TokenType.SLASH, TokenType.STAR)) {
       const operator = this.previous();
       const right = this.unary();
@@ -141,6 +147,7 @@ export default class Parser {
     let expression = this.factor();
 
     // NOTE: match consumes the token if it matches.
+    // NOTE: While loop is necessary because you can have expressions such as (1 + 2 + 3).
     while (this.match(TokenType.MINUS, TokenType.PLUS)) {
       const operator = this.previous();
       const right = this.factor();
@@ -155,6 +162,7 @@ export default class Parser {
     // Peeling the precedence layer and calling a method with higher precedence to see if we can get any expression from it.
     let expression = this.term();
 
+    // NOTE: While loop is necessary because you can have conditions such as (3 > 4 >= 4 < 1 <= 1).
     while (
       // NOTE: match consumes the token if it matches.
       this.match(
@@ -178,6 +186,7 @@ export default class Parser {
     let expression = this.comparison();
 
     // NOTE: match consumes the token if it matches.
+    // NOTE: While loop is necessary because you can have conditions such as (true == true == false == false).
     while (this.match(TokenType.BANG_EQUAL, TokenType.EQUAL_EQUAL)) {
       const operator = this.previous();
       const right = this.comparison();
