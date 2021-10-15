@@ -205,12 +205,4 @@ export default class Parser {
     //            get changed in the other functions.
     return this.equality();
   }
-
-  parse(): Expression | undefined {
-    try {
-      return this.expression();
-    } catch (err) {
-      return;
-    }
-  }
 }

@@ -1,4 +1,3 @@
-import Tox from "./Tox.ts";
 import Token from "./Token.ts";
 import TokenType from "./TokenType.ts";
 
@@ -151,8 +150,7 @@ export default class Scanner {
     }
 
     if (this.isAtEnd()) {
-      Tox.error(this.line, "String not ended.");
-      return;
+      throw new Error(`String did not end at line: ${this.line}`);
     }
 
     // We close the ".
@@ -285,7 +283,7 @@ export default class Scanner {
           // NOTE: we don't end the program when we encounter a tokenizing error, we just report it.
           // Anytime we report an error Tox.hadError flag gets set to true, then later down
           // the road we can make sure not to execute the code.
-          Tox.error(this.line, "Unexpected character.");
+          throw new Error(`Unexpected character at line: ${this.line}`);
         }
         break;
       }
