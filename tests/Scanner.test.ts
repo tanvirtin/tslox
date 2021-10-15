@@ -2,7 +2,7 @@ import Scanner from "../src/Scanner.ts";
 
 import { assertEquals } from "https://deno.land/std@0.110.0/testing/asserts.ts";
 
-Deno.test("scan", () => {
+Deno.test("scanSource", () => {
   const assertionTable: Record<string, string[]> = {
     "(": ["<Token type=LEFT_PAREN lexeme=( />"],
     ")": ["<Token type=RIGHT_PAREN lexeme=) />"],
@@ -71,4 +71,41 @@ Deno.test("scan", () => {
       "<Token type=EOF lexeme=\0 />",
     );
   }
+});
+
+Deno.test("single line comment", () => {
+  const source = `
+    // Hello world
+    3
+  `
+  const scanner = new Scanner(source);
+  const tokens = scanner.scanSource();
+  assertEquals(tokens.length, 2)
+  assertEquals(tokens[0].toString(), "<Token type=NUMBER lexeme=3 literal=3 />")
+  assertEquals(tokens[1].toString(), "<Token type=EOF lexeme=\0 />")
+});
+
+Deno.test("multi line comment", () => {
+  const source = `
+    /* Hello world
+    */
+    3
+  `
+  const scanner = new Scanner(source);
+  const tokens = scanner.scanSource();
+  assertEquals(tokens.length, 2)
+  assertEquals(tokens[0].toString(), "<Token type=NUMBER lexeme=3 literal=3 />")
+  assertEquals(tokens[1].toString(), "<Token type=EOF lexeme=\0 />")
+});
+
+Deno.test("unfinished multi line comment", () => {
+  const source = `
+    /* Hello world
+    *
+    3
+  `
+  const scanner = new Scanner(source);
+  const tokens = scanner.scanSource();
+  assertEquals(tokens.length, 1)
+  assertEquals(tokens[0].toString(), "<Token type=EOF lexeme=\0 />")
 });

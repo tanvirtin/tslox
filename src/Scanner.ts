@@ -256,6 +256,17 @@ export default class Scanner {
           while (this.current() !== "\n" && !this.isAtEnd()) {
             this.advance();
           }
+        } else if (this.match("*")) {
+          // We advance until we find a corresponding "*/".
+          while (!this.isAtEnd()) {
+            if (this.current() === "*" && this.next() === "/") {
+              // We consume the "*" and "/".
+              this.advance();
+              this.advance();
+              break;
+            }
+            this.advance();
+          }
         } else {
           this.addToken(TokenType.SLASH);
         }
