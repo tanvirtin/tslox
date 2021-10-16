@@ -82,6 +82,20 @@ export default class Parser {
     throw new Error(message);
   }
 
+  /**
+   * ------------------------------------------------------------------------------
+   * PRECEDENCE ORDER (Top being the HIGHEST precidence (Most LEFT binding power)): 
+   * - primary
+   * - grouping (must check for everything)
+   * - unary (must check itself, must check for all precedence below it)
+   * - factor (must check for all precedence below it)
+   * - term (must check for all precedence below it)
+   * - comparison (must check for all precedence below it)
+   * - equality (must check for all precedence below it)
+   * - expression (must check for all precedence below it)
+   * ------------------------------------------------------------------------------
+   */
+
   // Highest precedence-- Precedence value: 6.
   private primary(): Expression {
     // NOTE: match consumes the token if it matches.
@@ -96,6 +110,10 @@ export default class Parser {
       return new LiteralExpression((this.previous().literal));
     }
 
+    throw new Error("Expected expression.");
+  }
+
+  private grouping(): Expression {
     // NOTE: match consumes the token if it matches.
     if (this.match(TokenType.LEFT_PAREN)) {
       // We make the lowest precedence call and retrieve the entire expression within the left and right paren brackets.
@@ -105,7 +123,7 @@ export default class Parser {
       return new GroupingExpression(expression);
     }
 
-    throw new Error("Expected expression.");
+    return this.primary();
   }
 
   // Precedence value: 5
@@ -114,6 +132,7 @@ export default class Parser {
   //       expression is literally the first token the parser identifies, it is going to be very hard
   //       to match this expression. A term will in most cases be caught instead.
   private unary(): Expression {
+    // NOTE: Can only call the next layer below it.
     // NOTE: match consumes the token if it matches.
     // You can't chain unary expressions.
     if (this.match(TokenType.BANG, TokenType.MINUS)) {
@@ -122,11 +141,12 @@ export default class Parser {
       return new UnaryExpression(operator, right);
     }
 
-    return this.primary();
+    return this.grouping();
   }
 
   // Precedence value: 4
   private factor(): Expression {
+    // NOTE: Can only call the next layer below it.
     // Peeling the precedence layer and calling a method with higher precedence to see if we can get any expression from it.
     let expression = this.unary();
 
@@ -143,6 +163,7 @@ export default class Parser {
 
   // Precedence value: 3
   private term(): Expression {
+    // NOTE: Can only call the next layer below it.
     // Peeling the precedence layer and calling a method with higher precedence to see if we can get any expression from it.
     let expression = this.factor();
 
@@ -159,6 +180,7 @@ export default class Parser {
 
   // Precedence value: 2
   private comparison(): Expression {
+    // NOTE: Can only call the next layer below it.
     // Peeling the precedence layer and calling a method with higher precedence to see if we can get any expression from it.
     let expression = this.term();
 
@@ -184,7 +206,7 @@ export default class Parser {
   private equality(): Expression {
     // Peeling the precedence layer and calling a method with higher precedence to see if we can get any expression from it.
     let expression = this.comparison();
-
+    
     // NOTE: match consumes the token if it matches.
     // NOTE: While loop is necessary because you can have conditions such as (true == true == false == false).
     while (this.match(TokenType.BANG_EQUAL, TokenType.EQUAL_EQUAL)) {
