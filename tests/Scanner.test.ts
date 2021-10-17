@@ -77,12 +77,15 @@ Deno.test("single line comment", () => {
   const source = `
     // Hello world
     3
-  `
+  `;
   const scanner = new Scanner(source);
   const tokens = scanner.scanSource();
-  assertEquals(tokens.length, 2)
-  assertEquals(tokens[0].toString(), "<Token type=NUMBER lexeme=3 literal=3 />")
-  assertEquals(tokens[1].toString(), "<Token type=EOF lexeme=\0 />")
+  assertEquals(tokens.length, 2);
+  assertEquals(
+    tokens[0].toString(),
+    "<Token type=NUMBER lexeme=3 literal=3 />",
+  );
+  assertEquals(tokens[1].toString(), "<Token type=EOF lexeme=\0 />");
 });
 
 Deno.test("multi line comment", () => {
@@ -90,12 +93,15 @@ Deno.test("multi line comment", () => {
     /* Hello world
     */
     3
-  `
+  `;
   const scanner = new Scanner(source);
   const tokens = scanner.scanSource();
-  assertEquals(tokens.length, 2)
-  assertEquals(tokens[0].toString(), "<Token type=NUMBER lexeme=3 literal=3 />")
-  assertEquals(tokens[1].toString(), "<Token type=EOF lexeme=\0 />")
+  assertEquals(tokens.length, 2);
+  assertEquals(
+    tokens[0].toString(),
+    "<Token type=NUMBER lexeme=3 literal=3 />",
+  );
+  assertEquals(tokens[1].toString(), "<Token type=EOF lexeme=\0 />");
 });
 
 Deno.test("unfinished multi line comment", () => {
@@ -103,9 +109,9 @@ Deno.test("unfinished multi line comment", () => {
     /* Hello world
     *
     3
-  `
+  `;
   const scanner = new Scanner(source);
   const tokens = scanner.scanSource();
-  assertEquals(tokens.length, 1)
-  assertEquals(tokens[0].toString(), "<Token type=EOF lexeme=\0 />")
+  assertEquals(tokens.length, 1);
+  assertEquals(tokens[0].toString(), "<Token type=EOF lexeme=\0 />");
 });

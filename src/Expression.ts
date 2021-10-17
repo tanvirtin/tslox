@@ -18,48 +18,43 @@ export class LiteralExpression implements Expression {
   }
 
   toString(): string {
-    return `(${this.value})`;
+    return `${this.value}`;
   }
 }
 
 export class UnaryExpression implements Expression {
   operator: Token;
-  right: Expression;
+  right: Expression | undefined;
 
-  constructor(operator: Token, right: Expression) {
+  constructor(operator: Token, right: Expression | undefined) {
     this.operator = operator;
     this.right = right;
   }
 
   toString(): string {
-    return `(${this.operator.lexeme} ${this.right.toString()})`;
+    return `(${this.operator.lexeme} ${this.right?.toString() || ""})`;
   }
 }
 
 export class BinaryExpression implements Expression {
-  left: Expression;
+  left: Expression | undefined;
   operator: Token;
-  right: Expression;
+  right: Expression | undefined;
 
-  constructor(left: Expression, operator: Token, right: Expression) {
+  constructor(
+    left: Expression | undefined,
+    operator: Token,
+    right: Expression | undefined,
+  ) {
     this.left = left;
     this.operator = operator;
     this.right = right;
   }
 
   toString(): string {
-    return `(${this.left.toString()} ${this.operator.lexeme} ${this.right.toString()})`;
-  }
-}
-
-export class GroupingExpression implements Expression {
-  expression: Expression;
-
-  constructor(expression: Expression) {
-    this.expression = expression;
-  }
-
-  toString(): string {
-    return `(${this.expression.toString()})`;
+    const getStr = (val: any) => val != null ? val.toString() : "<>";
+    return `(${getStr(this.left)} ${this.operator.lexeme} ${
+      getStr(this.right)
+    })`;
   }
 }
