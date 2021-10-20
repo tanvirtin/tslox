@@ -11,9 +11,9 @@ export default class Scanner {
   private tokens: Token[] = [];
   // The startIndex index points to the first character in the lexeme being scanned.
   private startIndex: number = 0;
-  // The currentIndex index points at the character currentIndexly being considered.
-  private currentIndex: number = 0;
-  // The line number tracks the line currentIndexly being tokenized.
+  // The cursor index points at the character cursorly being considered.
+  private cursor: number = 0;
+  // The line number tracks the line cursorly being tokenized.
   private line: number = 1;
 
   constructor(source: string) {
@@ -23,18 +23,18 @@ export default class Scanner {
   private current(): string {
     // Anything beyond the input source length is a null identifier.
     if (this.isAtEnd()) return "\0";
-    return this.source[this.currentIndex];
+    return this.source[this.cursor];
   }
 
   private next(): string {
     // If value that the lexer isn't pointing to is greater than or equal to te length of the source,
     // we return null string identifier. Anything beyone the length of the string is a null string.
-    if (this.currentIndex + 1 >= this.source.length) return "\0";
-    return this.source[this.currentIndex + 1];
+    if (this.cursor + 1 >= this.source.length) return "\0";
+    return this.source[this.cursor + 1];
   }
 
   private isAtEnd(): boolean {
-    return this.currentIndex >= this.source.length;
+    return this.cursor >= this.source.length;
   }
 
   private check(char: string): boolean {
@@ -44,22 +44,22 @@ export default class Scanner {
   private match(expected: string): boolean {
     if (this.isAtEnd()) return false;
     if (!this.check(expected)) return false;
-    // We only consume the currentIndex character if it's what we are looking for.
+    // We only consume the cursor character if it's what we are looking for.
     this.advance();
     return true;
   }
 
   private addToken(type: TokenType, literal?: any): void {
-    // NOTE: before we advanced this.currentIndex, we noted down this.startIndex,
+    // NOTE: before we advanced this.cursor, we noted down this.startIndex,
     // using the two index, we get the word in the source associated with this token.
-    const text = this.source.substring(this.startIndex, this.currentIndex);
+    const text = this.source.substring(this.startIndex, this.cursor);
     this.tokens.push(new Token(type, text, literal, this.line));
   }
 
   private advance(): string {
-    const currentCharacter = this.source[this.currentIndex];
-    // We return the currentIndex character being looked at and advance to the next character.
-    ++this.currentIndex;
+    const currentCharacter = this.source[this.cursor];
+    // We return the cursor character being looked at and advance to the next character.
+    ++this.cursor;
     return currentCharacter;
   }
 
@@ -85,7 +85,7 @@ export default class Scanner {
     // Once we encounter something that is neither a digit or a number, we extract the text between the range.
     const text: string = this.source.substring(
       this.startIndex,
-      this.currentIndex,
+      this.cursor,
     );
 
     const keywords: Record<string, TokenType> = {
@@ -138,7 +138,7 @@ export default class Scanner {
 
     this.addToken(
       TokenType.NUMBER,
-      parseFloat(this.source.substring(this.startIndex, this.currentIndex)),
+      parseFloat(this.source.substring(this.startIndex, this.cursor)),
     );
   }
 
@@ -163,20 +163,20 @@ export default class Scanner {
     // NOTE: We keep everything within the quotes even new lines.
     const value: string = this.source.substring(
       this.startIndex + 1,
-      this.currentIndex - 1,
+      this.cursor - 1,
     );
 
     this.addToken(TokenType.STRING, value);
   }
 
-  // Scan the currentIndex source character to match a specific language known lexeme.
+  // Scan the cursor source character to match a specific language known lexeme.
   // Scanner will advance more if it needs to extract a specific lexeme from a sequences of chars.
   private scanChar(): void {
     // At each scanChar call, we are going to be dealing with a new lexeme, and therefore new startIndex.
-    this.startIndex = this.currentIndex;
+    this.startIndex = this.cursor;
     // We retrieve the current character before advancing to the next.
     const char = this.current();
-    // NOTE: Each time this.advance method is called, this.currentIndex is going to point to the next character.
+    // NOTE: Each time this.advance method is called, this.cursor is going to point to the next character.
     this.advance();
 
     switch (char) {

@@ -1,3 +1,4 @@
+import Evaluator from "./Evaluator.ts";
 import Token from "./Token.ts";
 
 // The class Expression is a node class for the Abstract Syntax Tree.
@@ -5,8 +6,12 @@ import Token from "./Token.ts";
 // These different types of Expression can refer to each other.
 // These references forms a chain of expressions, which will basically be our Abstract Syntax Tree.
 
+const toString = (expression: Expression | undefined) =>
+  expression != null ? expression.toString() : "<>";
+
 export interface Expression {
   toString(): string;
+  evaluate(evaluator: Evaluator): any;
 }
 
 // This expression type is atomic in nature. It has no reference to any other Expression.
@@ -17,8 +22,12 @@ export class LiteralExpression implements Expression {
     this.value = value;
   }
 
+  evaluate(evaluator: Evaluator): any {
+    return evaluator.literalExpression(this);
+  }
+
   toString(): string {
-    return `${this.value}`;
+    return this.value.toString();
   }
 }
 
@@ -31,8 +40,12 @@ export class UnaryExpression implements Expression {
     this.right = right;
   }
 
+  evaluate(evaluator: Evaluator): any {
+    return evaluator.unaryExpression(this);
+  }
+
   toString(): string {
-    return `(${this.operator.lexeme} ${this.right?.toString() || ""})`;
+    return `(${this.operator.lexeme} ${toString(this.right)})`;
   }
 }
 
@@ -51,10 +64,13 @@ export class BinaryExpression implements Expression {
     this.right = right;
   }
 
+  evaluate(evaluator: Evaluator): any {
+    return evaluator.binaryExpression(this);
+  }
+
   toString(): string {
-    const getStr = (val: any) => val != null ? val.toString() : "<>";
-    return `(${getStr(this.left)} ${this.operator.lexeme} ${
-      getStr(this.right)
+    return `(${toString(this.left)} ${this.operator.lexeme} ${
+      toString(this.right)
     })`;
   }
 }

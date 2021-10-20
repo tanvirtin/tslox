@@ -19,8 +19,8 @@ import Token from "./Token.ts";
 
 export default class Parser {
   private tokens: Token[];
-  private currentIndex: number = 0;
-  private pendingExpressions: any[] = [];
+  private cursor: number = 0;
+  private pendingExpressions: (BinaryExpression | UnaryExpression)[] = [];
   private pendingPrecedence: number[] = [];
   private precidenceHistory: number[] = [1, 1];
   private completedExpressions: Expression[] = [];
@@ -31,11 +31,11 @@ export default class Parser {
   }
 
   private previousToken(): Token {
-    return this.tokens[this.currentIndex - 1];
+    return this.tokens[this.cursor - 1];
   }
 
   private currentToken(): Token {
-    return this.tokens[this.currentIndex];
+    return this.tokens[this.cursor];
   }
 
   // End of Token
@@ -60,7 +60,7 @@ export default class Parser {
 
   private advanceToken(): void {
     if (!this.endOfToken()) {
-      ++this.currentIndex;
+      ++this.cursor;
     }
   }
 
@@ -74,10 +74,11 @@ export default class Parser {
     let lastPending;
     while (this.hasCompletedExpressions()) {
       lastPending = this.pendingExpressions.at(-1);
-      var lastPendingPrecedence = this.pendingPrecedence.at(-1) as number;
+      var lastPendingPrecedence = this.pendingPrecedence.at(-1);
       var lastCompleted = this.completedExpressions.pop();
       if (
-        respect_precedence && this.currentPrecedence() > lastPendingPrecedence
+        respect_precedence && lastPendingPrecedence &&
+        this.currentPrecedence() > lastPendingPrecedence
       ) {
         return lastCompleted;
       }
@@ -98,11 +99,19 @@ export default class Parser {
   }
 
   private currentPrecedence() {
-    return this.precidenceHistory.at(-1) as number;
+    const currentPrecedence = this.precidenceHistory.at(-1);
+    if (currentPrecedence == null) {
+      throw new Error("Failed to retrieve current precedence");
+    }
+    return currentPrecedence;
   }
 
   private lastPrecedence() {
-    return this.precidenceHistory.at(-2) as number;
+    const lastPrecedence = this.precidenceHistory.at(-2);
+    if (lastPrecedence == null) {
+      throw new Error("Failed to retrieve last precedence");
+    }
+    return lastPrecedence;
   }
 
   private hasPrecedenceIncreased() {
