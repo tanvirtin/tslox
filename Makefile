@@ -6,3 +6,6 @@ compile:
 
 fmt:
 	deno fmt .
+
+run:
+	deno run --allow-read src/index.ts $(FILENAME)

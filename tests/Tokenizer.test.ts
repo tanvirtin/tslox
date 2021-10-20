@@ -1,4 +1,4 @@
-import Scanner from "../src/Scanner.ts";
+import Tokenizer from "../src/Tokenizer.ts";
 
 import { assertEquals } from "https://deno.land/std@0.110.0/testing/asserts.ts";
 
@@ -59,8 +59,8 @@ Deno.test("scanSource", () => {
   };
   for (const source in assertionTable) {
     const expectedTokenStrings = assertionTable[source];
-    const scanner = new Scanner(source);
-    const tokens = scanner.scanSource();
+    const tokenizer = new Tokenizer(source);
+    const tokens = tokenizer.scanSource();
     for (let i = 0; i < tokens.length - 1; ++i) {
       const token = tokens[i];
       const expectedTokenString = expectedTokenStrings[i];
@@ -78,8 +78,8 @@ Deno.test("single line comment", () => {
     // Hello world
     3
   `;
-  const scanner = new Scanner(source);
-  const tokens = scanner.scanSource();
+  const tokenizer = new Tokenizer(source);
+  const tokens = tokenizer.scanSource();
   assertEquals(tokens.length, 2);
   assertEquals(
     tokens[0].toString(),
@@ -94,8 +94,8 @@ Deno.test("multi line comment", () => {
     */
     3
   `;
-  const scanner = new Scanner(source);
-  const tokens = scanner.scanSource();
+  const tokenizer = new Tokenizer(source);
+  const tokens = tokenizer.scanSource();
   assertEquals(tokens.length, 2);
   assertEquals(
     tokens[0].toString(),
@@ -110,8 +110,8 @@ Deno.test("unfinished multi line comment", () => {
     *
     3
   `;
-  const scanner = new Scanner(source);
-  const tokens = scanner.scanSource();
+  const tokenizer = new Tokenizer(source);
+  const tokens = tokenizer.scanSource();
   assertEquals(tokens.length, 1);
   assertEquals(tokens[0].toString(), "<Token type=EOF lexeme=\0 />");
 });

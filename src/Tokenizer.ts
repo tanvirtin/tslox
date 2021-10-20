@@ -4,7 +4,7 @@ import TokenType from "./TokenType.ts";
 // TODO: Use coroutines (lisp promises) to make tokens be on demand.
 // We would like to preserve memory footprint if possible.
 
-export default class Scanner {
+export default class Tokenizer {
   // The input source code.
   private source: string;
   // The list of tokens we are going to accumulate from the source input.
@@ -170,7 +170,7 @@ export default class Scanner {
   }
 
   // Scan the cursor source character to match a specific language known lexeme.
-  // Scanner will advance more if it needs to extract a specific lexeme from a sequences of chars.
+  // Tokenizer will advance more if it needs to extract a specific lexeme from a sequences of chars.
   private scanChar(): void {
     // At each scanChar call, we are going to be dealing with a new lexeme, and therefore new startIndex.
     this.startIndex = this.cursor;

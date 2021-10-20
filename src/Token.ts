@@ -3,14 +3,16 @@ import TokenType from "./TokenType.ts";
 export default class Token {
   type: TokenType;
   // The lexeme variable will be the actual character/words from the source code related to this token.
-  lexeme: String;
-  // The literal variable will contain any tangible value that can be associated with this token.
+  lexeme: string;
+  // The literal value is similar to lexeme, but it will be used to contain more specific values.
+  // For example if you have a string "Hello, World!", the lexeme will be "Hello, World!" and the
+  // literal value will be Hello, World! without the "".
   literal: any;
   line: number;
 
   constructor(
     type: TokenType,
-    lexeme: String,
+    lexeme: string,
     literal: any,
     line: number,
   ) {

@@ -1,4 +1,4 @@
-import Scanner from "../src/Scanner.ts";
+import Tokenizer from "../src/Tokenizer.ts";
 import Parser from "../src/Parser.ts";
 
 import {
@@ -38,8 +38,8 @@ Deno.test("expression", () => {
 
   for (const source in assertionTable) {
     const expected = assertionTable[source];
-    const scanner = new Scanner(source);
-    const parser = new Parser(scanner.scanSource());
+    const tokenizer = new Tokenizer(source);
+    const parser = new Parser(tokenizer.scanSource());
     const expression = parser.expression();
     assertExists(expression);
     assertEquals(expression.toString(), expected);

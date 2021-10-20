@@ -1,8 +1,15 @@
 import {
+  ExpressionStatement,
+  PrintStatement,
+  Statement,
+  VariableStatement,
+} from "./Statement.ts";
+import {
   BinaryExpression,
   Expression,
   LiteralExpression,
   UnaryExpression,
+  VariableExpression,
 } from "./Expression.ts";
 import TokenType from "./TokenType.ts";
 import Token from "./Token.ts";
@@ -15,6 +22,8 @@ import Token from "./Token.ts";
     NOTE: This is only allowed when the current operator precedence is greater than the pending operator precedence.
   - If the precedence is unchanged the behaviour will be the same when precedence drops.
   - Formula for calculating precedence for an operator is (precedence = operator defined precedence)**depth
+  - Anything in inside parenthesis will bump up the depth variable. The depth variable drops when the code
+    leaves the right parenthesis. This is how we controll the right and left tug of war via precedence.
 */
 
 export default class Parser {
@@ -62,6 +71,17 @@ export default class Parser {
     if (!this.endOfToken()) {
       ++this.cursor;
     }
+  }
+
+  // Consume token expects a token of a certain type to be the next token.
+  // If token is not found, an error is thrown otherwise the token is advanced.
+  private consumeToken(type: TokenType, message: string) {
+    if (this.checkToken(type)) {
+      const token = this.currentToken();
+      this.advanceToken();
+      return token;
+    }
+    throw new Error(message);
   }
 
   private hasCompletedExpressions() {
@@ -118,15 +138,19 @@ export default class Parser {
     return this.currentPrecedence() > this.lastPrecedence();
   }
 
-  private literal(value: any) {
+  private literalExpression(value: any) {
     this.completedExpressions.push(new LiteralExpression(value));
   }
 
-  private unary(token: Token) {
+  private variableExpression(token: Token) {
+    this.completedExpressions.push(new VariableExpression(token));
+  }
+
+  private unaryExpression(token: Token) {
     this.pendingExpressions.push(new UnaryExpression(token, undefined));
   }
 
-  private binary(token: Token) {
+  private binaryExpression(token: Token) {
     if (this.hasPrecedenceIncreased()) {
       var expression = this.completedExpressions.pop();
     } else {
@@ -140,11 +164,11 @@ export default class Parser {
     }
   }
 
-  private isUnary(): boolean {
+  private isUnaryExpression(): boolean {
     return !this.hasCompletedExpressions();
   }
 
-  private isBinary(): boolean {
+  private isBinaryExpression(): boolean {
     return this.hasCompletedExpressions();
   }
 
@@ -153,29 +177,32 @@ export default class Parser {
       const token = this.currentToken();
 
       if (this.matchToken(TokenType.NUMBER)) {
-        this.literal((this.previousToken().literal));
+        this.literalExpression((this.previousToken().literal));
       } else if (this.matchToken(TokenType.STRING)) {
-        this.literal((this.previousToken().literal));
+        this.literalExpression((this.previousToken().literal));
       } else if (this.matchToken(TokenType.FALSE)) {
-        this.literal(false);
+        this.literalExpression(false);
       } else if (this.matchToken(TokenType.TRUE)) {
-        this.literal(true);
+        this.literalExpression(true);
       } else if (this.matchToken(TokenType.NIL)) {
-        this.literal(false);
+        this.literalExpression(false);
         // Unary expressions: All expression to the left must be bounded before we handle unary expressions.
+      } else if (this.matchToken(TokenType.IDENTIFIER)) {
+        this.variableExpression(token);
       } else if (
-        this.isUnary() && this.matchToken(TokenType.BANG, TokenType.MINUS)
+        this.isUnaryExpression() &&
+        this.matchToken(TokenType.BANG, TokenType.MINUS)
       ) {
         this.setPrecedence(7);
-        this.unary(token);
+        this.unaryExpression(token);
       } else if (
-        this.isBinary() &&
+        this.isBinaryExpression() &&
         this.matchToken(TokenType.BANG_EQUAL, TokenType.EQUAL_EQUAL)
       ) {
         this.setPrecedence(3);
-        this.binary(token);
+        this.binaryExpression(token);
       } else if (
-        this.isBinary() &&
+        this.isBinaryExpression() &&
         this.matchToken(
           TokenType.GREATER,
           TokenType.GREATER_EQUAL,
@@ -184,26 +211,89 @@ export default class Parser {
         )
       ) {
         this.setPrecedence(4);
-        this.binary(token);
+        this.binaryExpression(token);
       } else if (
-        this.isBinary() && this.matchToken(TokenType.MINUS, TokenType.PLUS)
+        this.isBinaryExpression() &&
+        this.matchToken(TokenType.MINUS, TokenType.PLUS)
       ) {
         this.setPrecedence(5);
-        this.binary(token);
+        this.binaryExpression(token);
       } else if (
-        this.isBinary() && this.matchToken(TokenType.SLASH, TokenType.STAR)
+        this.isBinaryExpression() &&
+        this.matchToken(TokenType.SLASH, TokenType.STAR)
       ) {
         this.setPrecedence(6);
-        this.binary(token);
+        this.binaryExpression(token);
       } else if (this.matchToken(TokenType.LEFT_PAREN)) {
         ++this.depth;
       } else if (this.matchToken(TokenType.RIGHT_PAREN)) {
         --this.depth;
       } else {
-        this.advanceToken();
+        // If we can't find a token we know we end the loop!
+        // In the future this is where we will dictate statement end indicators.
+        break;
       }
     }
 
     return this.completePendingExpressions(false);
+  }
+
+  printStatement() {
+    // NOTE: The search for tokens if none of the if statements are caught.
+    //       Since the ";" token is not in the if statement, the look for
+    //       tokens will end immediately returning us the expression made so far.
+    const expression = this.expression();
+    if (expression == null) {
+      throw new Error("No expression provided for the print statement");
+    }
+    // When expression is a statement it means having a ";" is a must in our language.
+    this.consumeToken(TokenType.SEMICOLON, 'Expected ";" after expression');
+    return new PrintStatement(expression);
+  }
+
+  expressionStatement() {
+    const expression = this.expression();
+    if (expression == null) {
+      throw new Error("No expression provided for the expression statement");
+    }
+    // When expression is a statement it means having a ";" is a must in our language.
+    this.consumeToken(TokenType.SEMICOLON, 'Expected ";" after expression');
+    return new ExpressionStatement(expression);
+  }
+
+  variableStatement() {
+    const name: Token = this.consumeToken(
+      TokenType.IDENTIFIER,
+      "Expected variable name",
+    );
+    let expression;
+    // We check if the next token is an equal.
+    // NOTE**: We are not consuming the equal token, and this is not an assertion
+    //         because users can define variables with a nil value such as var a;
+    if (this.matchToken(TokenType.EQUAL)) {
+      expression = this.expression();
+    }
+    this.consumeToken(TokenType.SEMICOLON, "Expected variable declaration");
+    return new VariableStatement(name, expression);
+  }
+
+  statement() {
+    if (this.matchToken(TokenType.PRINT)) {
+      return this.printStatement();
+    }
+    if (this.matchToken(TokenType.VAR)) {
+      return this.variableStatement();
+    }
+    return this.expressionStatement();
+  }
+
+  parse(): Statement[] {
+    const statements: Statement[] = [];
+    // The while loop kicks start of the scavenging of tokens.
+    // NOTE**: this.cursor only progresses within the this.expression call and sub calls.
+    while (!this.endOfToken()) {
+      statements.push(this.statement());
+    }
+    return statements;
   }
 }

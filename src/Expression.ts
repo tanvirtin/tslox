@@ -1,17 +1,16 @@
-import Evaluator from "./Evaluator.ts";
+import Interpreter from "./Interpreter.ts";
 import Token from "./Token.ts";
 
-// The class Expression is a node class for the Abstract Syntax Tree.
-// As you can see there are different types of Expression for the tree.
-// These different types of Expression can refer to each other.
-// These references forms a chain of expressions, which will basically be our Abstract Syntax Tree.
-
+// Recursive in nature. This will call the function call stack recursively until toString method resolves.
+// NOTE: Printing to the screen functionality can also be redesigned as a visitor pattern, but for simplicity I am
+//       limiting that now. This can also be a reflection on how the visitor pattern can be useful when I eventually
+//       revisit this project.
 const toString = (expression: Expression | undefined) =>
   expression != null ? expression.toString() : "<>";
 
 export interface Expression {
   toString(): string;
-  evaluate(evaluator: Evaluator): any;
+  evaluate(interpreter: Interpreter): any;
 }
 
 // This expression type is atomic in nature. It has no reference to any other Expression.
@@ -22,12 +21,28 @@ export class LiteralExpression implements Expression {
     this.value = value;
   }
 
-  evaluate(evaluator: Evaluator): any {
-    return evaluator.literalExpression(this);
+  evaluate(interpreter: Interpreter): any {
+    return interpreter.literalExpression(this);
   }
 
   toString(): string {
     return this.value.toString();
+  }
+}
+
+export class VariableExpression implements Expression {
+  name: Token;
+
+  constructor(name: Token) {
+    this.name = name;
+  }
+
+  evaluate(interpreter: Interpreter): any {
+    return interpreter.variableExpression(this);
+  }
+
+  toString(): string {
+    return this.name.toString();
   }
 }
 
@@ -40,8 +55,8 @@ export class UnaryExpression implements Expression {
     this.right = right;
   }
 
-  evaluate(evaluator: Evaluator): any {
-    return evaluator.unaryExpression(this);
+  evaluate(interpreter: Interpreter): any {
+    return interpreter.unaryExpression(this);
   }
 
   toString(): string {
@@ -64,8 +79,8 @@ export class BinaryExpression implements Expression {
     this.right = right;
   }
 
-  evaluate(evaluator: Evaluator): any {
-    return evaluator.binaryExpression(this);
+  evaluate(interpreter: Interpreter): any {
+    return interpreter.binaryExpression(this);
   }
 
   toString(): string {
