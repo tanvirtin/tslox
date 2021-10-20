@@ -14,7 +14,7 @@ import Token from "./Token.ts";
     Then the last pending expression right gets assigned to the last completed expression.
     NOTE: This is only allowed when the current operator precedence is greater than the pending operator precedence.
   - If the precedence is unchanged the behaviour will be the same when precedence drops.
-  - When we encounter RPAREN we revert the precedence to what it was before.
+  - Formula for calculating precedence for an operator is (precedence = operator defined precedence)**depth
 */
 
 export default class Parser {
@@ -30,36 +30,36 @@ export default class Parser {
     this.tokens = tokens;
   }
 
-  private previous(): Token {
+  private previousToken(): Token {
     return this.tokens[this.currentIndex - 1];
   }
 
-  private current(): Token {
+  private currentToken(): Token {
     return this.tokens[this.currentIndex];
   }
 
-  private isAtEnd(): boolean {
-    return this.current().type === TokenType.EOF;
+  // End of Token
+  private endOfToken(): boolean {
+    return this.currentToken().type === TokenType.EOF;
   }
 
-  private check(type: TokenType): boolean {
-    if (this.isAtEnd()) return false;
-    return this.current().type == type;
+  private checkToken(type: TokenType): boolean {
+    if (this.endOfToken()) return false;
+    return this.currentToken().type == type;
   }
 
-  private match(...types: TokenType[]): boolean {
+  private matchToken(...types: TokenType[]): boolean {
     for (const type of types) {
-      if (this.check(type)) {
-        this.advance();
-        // sets the precedence
+      if (this.checkToken(type)) {
+        this.advanceToken();
         return true;
       }
     }
     return false;
   }
 
-  private advance(): void {
-    if (!this.isAtEnd()) {
+  private advanceToken(): void {
+    if (!this.endOfToken()) {
       ++this.currentIndex;
     }
   }
@@ -68,19 +68,23 @@ export default class Parser {
     return this.completedExpressions.length !== 0;
   }
 
-  private completePendingExpressions(respect_precedence: boolean): Expression | undefined {
-    let lastPending
+  private completePendingExpressions(
+    respect_precedence: boolean,
+  ): Expression | undefined {
+    let lastPending;
     while (this.hasCompletedExpressions()) {
       lastPending = this.pendingExpressions.at(-1);
       var lastPendingPrecedence = this.pendingPrecedence.at(-1) as number;
       var lastCompleted = this.completedExpressions.pop();
-      if (respect_precedence && this.currentPrecedence() > lastPendingPrecedence) {
+      if (
+        respect_precedence && this.currentPrecedence() > lastPendingPrecedence
+      ) {
         return lastCompleted;
       }
       if (lastPending != null) {
         this.pendingExpressions.pop();
         this.pendingPrecedence.pop();
-        lastPending.right = lastCompleted
+        lastPending.right = lastCompleted;
         this.completedExpressions.push(lastPending);
       } else {
         lastPending = lastCompleted;
@@ -127,31 +131,43 @@ export default class Parser {
     }
   }
 
-  expression(): Expression | undefined {
-    while (!this.isAtEnd()) {
-      const token = this.current();
+  private isUnary(): boolean {
+    return !this.hasCompletedExpressions();
+  }
 
-      if (this.match(TokenType.NUMBER)) {
-        this.literal((this.previous().literal));
-      } else if (this.match(TokenType.STRING)) {
-        this.literal((this.previous().literal));
-      } else if (this.match(TokenType.FALSE)) {
+  private isBinary(): boolean {
+    return this.hasCompletedExpressions();
+  }
+
+  expression(): Expression | undefined {
+    while (!this.endOfToken()) {
+      const token = this.currentToken();
+
+      if (this.matchToken(TokenType.NUMBER)) {
+        this.literal((this.previousToken().literal));
+      } else if (this.matchToken(TokenType.STRING)) {
+        this.literal((this.previousToken().literal));
+      } else if (this.matchToken(TokenType.FALSE)) {
         this.literal(false);
-      } else if (this.match(TokenType.TRUE)) {
+      } else if (this.matchToken(TokenType.TRUE)) {
         this.literal(true);
-      } else if (this.match(TokenType.NIL)) {
+      } else if (this.matchToken(TokenType.NIL)) {
         this.literal(false);
-      // Unary operator
+        // Unary expressions: All expression to the left must be bounded before we handle unary expressions.
       } else if (
-        !this.hasCompletedExpressions() && this.match(TokenType.BANG, TokenType.MINUS)
+        this.isUnary() && this.matchToken(TokenType.BANG, TokenType.MINUS)
       ) {
         this.setPrecedence(7);
-        this.unary(token)
-      } else if (this.match(TokenType.BANG_EQUAL, TokenType.EQUAL_EQUAL)) {
+        this.unary(token);
+      } else if (
+        this.isBinary() &&
+        this.matchToken(TokenType.BANG_EQUAL, TokenType.EQUAL_EQUAL)
+      ) {
         this.setPrecedence(3);
         this.binary(token);
       } else if (
-        this.match(
+        this.isBinary() &&
+        this.matchToken(
           TokenType.GREATER,
           TokenType.GREATER_EQUAL,
           TokenType.LESS,
@@ -160,18 +176,22 @@ export default class Parser {
       ) {
         this.setPrecedence(4);
         this.binary(token);
-      } else if (this.match(TokenType.MINUS, TokenType.PLUS)) {
+      } else if (
+        this.isBinary() && this.matchToken(TokenType.MINUS, TokenType.PLUS)
+      ) {
         this.setPrecedence(5);
         this.binary(token);
-      } else if (this.match(TokenType.SLASH, TokenType.STAR)) {
+      } else if (
+        this.isBinary() && this.matchToken(TokenType.SLASH, TokenType.STAR)
+      ) {
         this.setPrecedence(6);
         this.binary(token);
-      } else if (this.match(TokenType.LEFT_PAREN)) {
+      } else if (this.matchToken(TokenType.LEFT_PAREN)) {
         ++this.depth;
-      } else if (this.match(TokenType.RIGHT_PAREN)) {
+      } else if (this.matchToken(TokenType.RIGHT_PAREN)) {
         --this.depth;
       } else {
-        this.advance();
+        this.advanceToken();
       }
     }
 

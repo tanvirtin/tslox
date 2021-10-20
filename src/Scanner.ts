@@ -1,6 +1,9 @@
 import Token from "./Token.ts";
 import TokenType from "./TokenType.ts";
 
+// TODO: Use coroutines (lisp promises) to make tokens be on demand.
+// We would like to preserve memory footprint if possible.
+
 export default class Scanner {
   // The input source code.
   private source: string;
