@@ -17,10 +17,11 @@ import TokenType from "./TokenType.ts";
 import Token from "./Token.ts";
 
 /*
-  WARNING: Precedence here is not the same as the precedence in Pratt Parsing, this is a custom iterative solution I came up with to learn more about parser.
+  WARNING: This is not Pratt Parsing, the meaning of precedence means something different here.
+           Precedence here is more like binding power.
   RULES:
-  - Precedence directly influences binding power of an expression. An increase and decrease in precedence will change the
-    power of the current operator token and will result in the left and right binding power of the expression to change.
+  - Precedence directly influences binding power of an expression. Operators with higher precedence will bind whatever expression
+    there exists currently as it's left expression. This means higher precedence increases it's binding power.
   - When precedence incrases we get the item from completed stack and use it as left for our new operator we just encountered.
     Increase in precedence -> New operator has more left binding power. 
   - When precedence drops, we pop the last pending expression and pop the last completed expression.
@@ -36,7 +37,7 @@ import Token from "./Token.ts";
 export default class Parser {
   private tokens: Token[];
   private cursor: number = 0;
-  private precedenceHistory: number[] = [1, 1];
+  private precidenceHistory: number[] = [1, 1];
   private pendingPrecedence: number[] = [];
   private pendingExpressions: Expression[] = [];
   private completedExpressions: Expression[] = [];
@@ -122,11 +123,11 @@ export default class Parser {
   }
 
   private setPrecedence(value: number) {
-    this.precedenceHistory.push(value ** this.depth);
+    this.precidenceHistory.push(value ** this.depth);
   }
 
   private currentPrecedence() {
-    const currentPrecedence = this.precedenceHistory.at(-1);
+    const currentPrecedence = this.precidenceHistory.at(-1);
     if (currentPrecedence == null) {
       throw new Error("Failed to retrieve current precedence");
     }
@@ -134,7 +135,7 @@ export default class Parser {
   }
 
   private lastPrecedence() {
-    const lastPrecedence = this.precedenceHistory.at(-2);
+    const lastPrecedence = this.precidenceHistory.at(-2);
     if (lastPrecedence == null) {
       throw new Error("Failed to retrieve last precedence");
     }
@@ -151,24 +152,6 @@ export default class Parser {
 
   private variableExpression(operator: Token) {
     this.completedExpressions.push(new VariableExpression(operator));
-  }
-
-  private unaryExpression(operator: Token) {
-    this.pendingExpressions.push(new UnaryExpression(operator, undefined));
-  }
-
-  private binaryExpression(operator: Token) {
-    if (this.hasPrecedenceIncreased()) {
-      var expression = this.completedExpressions.pop();
-    } else {
-      expression = this.completePendingExpressions(true);
-    }
-    if (expression != null) {
-      this.pendingPrecedence.push(this.currentPrecedence());
-      this.pendingExpressions.push(
-        new BinaryExpression(expression, operator, undefined),
-      );
-    }
   }
 
   private assignmentExpression(operator: Token) {
@@ -192,6 +175,24 @@ export default class Parser {
     this.pendingExpressions.push(new AssignmentExpression(variableExpression.name, operator, undefined))
   }
 
+  private unaryExpression(operator: Token) {
+    this.pendingExpressions.push(new UnaryExpression(operator, undefined));
+  }
+
+  private binaryExpression(operator: Token) {
+    if (this.hasPrecedenceIncreased()) {
+      var expression = this.completedExpressions.pop();
+    } else {
+      expression = this.completePendingExpressions(true);
+    }
+    if (expression != null) {
+      this.pendingPrecedence.push(this.currentPrecedence());
+      this.pendingExpressions.push(
+        new BinaryExpression(expression, operator, undefined),
+      );
+    }
+  }
+
   private isUnaryExpression(): boolean {
     return !this.hasCompletedExpressions();
   }
@@ -202,8 +203,15 @@ export default class Parser {
 
   expression(): Expression | undefined {
     while (!this.endOfToken()) {
+      // If we encounter a semicolon we break the loop. This indicates that we are done with the expression.
+      if (this.checkToken(TokenType.SEMICOLON)) {
+        break;
+      }
+
       const token = this.currentToken();
 
+      // We are scavenging for tokens that help us identify parts of an expression.
+      // If we encounter any token that is out of ordinary we break the loop.
       if (this.matchToken(TokenType.NUMBER)) {
         this.literalExpression((this.previousToken().literal));
       } else if (this.matchToken(TokenType.STRING)) {
@@ -263,9 +271,8 @@ export default class Parser {
       } else if (this.matchToken(TokenType.RIGHT_PAREN)) {
         --this.depth;
       } else {
-        // If we can't find a token we know we end the loop!
-        // In the future this is where we will dictate statement end indicators.
-        break;
+        // If we encounter any token while processing the expression that doesn't belong to an expression is an error.
+        throw new Error(`Illegal token: ${token.lexeme} found in expression`)
       }
     }
 
@@ -331,9 +338,12 @@ export default class Parser {
     if (this.matchToken(TokenType.PRINT)) {
       return this.printStatement();
     }
+    // "{" indicates we are about to go into a new block.
     if (this.matchToken(TokenType.LEFT_BRACE)) {
       return this.blockStatement();
     }
+    // If nothing is found it's probably one of those things were the user just puts an expression with a semicolon.
+    // For example: 1 + 2; Here we can say that the shown example is in fact an expression statement.
     return this.expressionStatement();
   }
 

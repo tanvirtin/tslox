@@ -84,11 +84,13 @@ export default class Interpreter {
   }
 
   expressionStatement(statement: Statement) {
+    // We are simply just going to evaluate the expression that is encapsulated using the statement.
     this.evaluate(statement.expression);
   }
 
   printStatement(statement: Statement) {
     const value = this.evaluate(statement.expression);
+    // We levarage deno to flush the literal to stdout.
     console.log(value);
   }
 

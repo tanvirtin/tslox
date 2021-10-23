@@ -35,5 +35,6 @@ export default class Environment {
       this.previous.assign(name, value);
       return;
     }
+    throw new Error(`Undefined variable ${name.lexeme}`);
   }
 }
