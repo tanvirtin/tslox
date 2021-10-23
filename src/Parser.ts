@@ -10,16 +10,21 @@ import {
   LiteralExpression,
   UnaryExpression,
   VariableExpression,
+  AssignmentExpression,
 } from "./Expression.ts";
 import TokenType from "./TokenType.ts";
 import Token from "./Token.ts";
 
 /*
   RULES:
+  - Precedence directly influences binding power of an expression. An increase and decrease in precedence will change the
+    power of the current operator token will result in the left and right binding power of the expression to change.
   - When precedence incrases we get the item from completed stack and use it as left for our new operator we just encountered.
+    Increase in precedence -> New operator has more left binding power. 
   - When precedence drops, we pop the last pending expression and pop the last completed expression.
     Then the last pending expression right gets assigned to the last completed expression.
     NOTE: This is only allowed when the current operator precedence is greater than the pending operator precedence.
+    Decrease in precedence -> New opreator has more right binding power. 
   - If the precedence is unchanged the behaviour will be the same when precedence drops.
   - Formula for calculating precedence for an operator is (precedence = operator defined precedence)**depth
   - Anything in inside parenthesis will bump up the depth variable. The depth variable drops when the code
@@ -29,7 +34,7 @@ import Token from "./Token.ts";
 export default class Parser {
   private tokens: Token[];
   private cursor: number = 0;
-  private pendingExpressions: (BinaryExpression | UnaryExpression)[] = [];
+  private pendingExpressions: (BinaryExpression | UnaryExpression | AssignmentExpression)[] = [];
   private pendingPrecedence: number[] = [];
   private precidenceHistory: number[] = [1, 1];
   private completedExpressions: Expression[] = [];
@@ -142,15 +147,36 @@ export default class Parser {
     this.completedExpressions.push(new LiteralExpression(value));
   }
 
-  private variableExpression(token: Token) {
-    this.completedExpressions.push(new VariableExpression(token));
+  private variableExpression(operator: Token) {
+    this.completedExpressions.push(new VariableExpression(operator));
   }
 
-  private unaryExpression(token: Token) {
-    this.pendingExpressions.push(new UnaryExpression(token, undefined));
+  private assignmentExpression(operator: Token) {
+    // If we have pending expression the assignment is invalid, a + b = c, should error out.
+    if (this.pendingExpressions.length !== 0) {
+      throw new Error('Invalid identier for assignment')
+    }
+    // Once we encounter "=" we need to pop the last item from the completedExpressions stack.
+    // This expression will actually be the Identifier token expression, which is just a LiteralExpression.
+    const variableExpression = this.completedExpressions.pop();
+    if (!(variableExpression instanceof VariableExpression)) {
+      throw new Error('Invalid variable expression');
+    }
+    if (variableExpression == null) {
+      throw new Error('No identifier found for the assignment');
+    }
+    if (variableExpression.name == null) {
+      throw new Error('Identifier is not a token');
+    }
+    // We push it to the pending expressions stack.
+    this.pendingExpressions.push(new AssignmentExpression(variableExpression.name, operator, undefined))
   }
 
-  private binaryExpression(token: Token) {
+  private unaryExpression(operator: Token) {
+    this.pendingExpressions.push(new UnaryExpression(operator, undefined));
+  }
+
+  private binaryExpression(operator: Token) {
     if (this.hasPrecedenceIncreased()) {
       var expression = this.completedExpressions.pop();
     } else {
@@ -159,7 +185,7 @@ export default class Parser {
     if (expression != null) {
       this.pendingPrecedence.push(this.currentPrecedence());
       this.pendingExpressions.push(
-        new BinaryExpression(expression, token, undefined),
+        new BinaryExpression(expression, operator, undefined),
       );
     }
   }
@@ -186,7 +212,13 @@ export default class Parser {
         this.literalExpression(true);
       } else if (this.matchToken(TokenType.NIL)) {
         this.literalExpression(false);
-        // Unary expressions: All expression to the left must be bounded before we handle unary expressions.
+      // Assignments done on a variable is actually an expression. (var a = 3; print a = 99;) should output 99, since print = 99; produces a value.
+      } else if (this.matchToken(TokenType.EQUAL)) {
+        // NOTE: we just need to look for the equal sign.
+        // With the highest possible precedence, whenever precedence drops this operator will
+        // be pending and then bind everything to it's right as it's right expression.
+        this.setPrecedence(8);
+        this.assignmentExpression(token);
       } else if (this.matchToken(TokenType.IDENTIFIER)) {
         this.variableExpression(token);
       } else if (

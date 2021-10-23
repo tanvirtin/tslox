@@ -13,4 +13,8 @@ export default class Environment {
     }
     throw new Error(`Undefined variable ${name.lexeme}`);
   }
+
+  assign(name: Token, value: any) {
+    this.values[name.lexeme] = value;
+  }
 }

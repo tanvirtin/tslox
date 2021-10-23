@@ -6,7 +6,8 @@ import {
   BinaryExpression,
   LiteralExpression,
   UnaryExpression,
-  VariableExpression
+  VariableExpression,
+  AssignmentExpression
 } from "./Expression.ts";
 
 // Interpreter is really a visitor for the expression nodes of the abstract syntax tree.
@@ -67,9 +68,19 @@ export default class Interpreter {
     return null;
   }
 
+  // Retrieves a variable from the environment.
   variableExpression(expression: VariableExpression) {
     // We retrieve the variable from the environment using the token.
     return this.environment.get(expression.name)
+  }
+
+  // Heart of the assignment logic.
+  assignmentExpression(expression: AssignmentExpression) {
+    // Evaluate the right side and extract the value.
+    const value = this.evaluate(expression.right)
+    // Then assign
+    this.environment.assign(expression.left, value)
+    return value;
   }
 
   expressionStatement(statement: Statement) {
