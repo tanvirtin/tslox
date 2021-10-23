@@ -3,6 +3,7 @@ import {
   PrintStatement,
   Statement,
   VariableStatement,
+  BlockStatement,
 } from "./Statement.ts";
 import {
   BinaryExpression,
@@ -309,22 +310,47 @@ export default class Parser {
     return new VariableStatement(name, expression);
   }
 
+  // A block is a mini program with it's own series of statements.
+  blockStatement() {
+    const statements: Statement[] = [];
+    // Until we haven't encountered a right brace or we have not reached the end of all tokens,
+    // we will loop through the tokens and add all variable statements inside the list of statements.
+    // Block for now will contain a series of statements.
+    while (!this.checkToken(TokenType.RIGHT_BRACE) && !this.endOfToken()) {
+      statements.push(this.declaration());
+    }
+    // We will always expect a RIGHT_BRACE token to end a block.
+    // If we reached the end of token before hitting a RIGHT_BRACE, program should error out.
+    this.consumeToken(TokenType.RIGHT_BRACE, "Expect '}' after block.");
+    return new BlockStatement(statements);
+  }
+
+  // This will get called after we failed to find a declration statement.
   statement() {
     if (this.matchToken(TokenType.PRINT)) {
       return this.printStatement();
     }
-    if (this.matchToken(TokenType.VAR)) {
-      return this.variableStatement();
+    if (this.matchToken(TokenType.LEFT_BRACE)) {
+      return this.blockStatement();
     }
     return this.expressionStatement();
   }
 
+  // We look for declarations first, if we can't find a declaration it's probably some other type of statement.
+  declaration() {
+    if (this.matchToken(TokenType.VAR)) {
+      return this.variableStatement();
+    }
+    return this.statement();
+  }
+
+  // A program is a series of statements. Statements are composed of expressions.
   parse(): Statement[] {
     const statements: Statement[] = [];
     // The while loop kicks start of the scavenging of tokens.
     // NOTE**: this.cursor only progresses within the this.expression call and sub calls.
     while (!this.endOfToken()) {
-      statements.push(this.statement());
+      statements.push(this.declaration());
     }
     return statements;
   }

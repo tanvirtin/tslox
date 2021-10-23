@@ -1,7 +1,7 @@
 import Environment from './Environment.ts';
 import TokenType from "./TokenType.ts";
 import { Expression } from "./Expression.ts";
-import { Statement, VariableStatement } from "./Statement.ts";
+import { Statement, VariableStatement, BlockStatement } from "./Statement.ts";
 import {
   BinaryExpression,
   LiteralExpression,
@@ -98,6 +98,23 @@ export default class Interpreter {
       value = this.evaluate(statement.expression); 
     }
     this.environment.define(statement.name.lexeme, value);
+  }
+
+  blockStatement(blockStatement: BlockStatement) {
+    const previous = this.environment;
+    // Replace the current environment with a new environment.
+    // But we make sure that the new environment points to the previous one.
+    this.environment = new Environment(this.environment)
+    try {
+      for (const statement of blockStatement.statements) {
+        this.execute(statement);
+      }
+    } catch (err) {
+      // On any error we recover the previous environment.
+      this.environment = previous;
+      throw err;
+    }
+    return null;
   }
 
   evaluate(expression: Expression | undefined) {

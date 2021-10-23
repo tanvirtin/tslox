@@ -3,7 +3,8 @@ import Interpreter from "./Interpreter.ts";
 import { Expression } from "./Expression.ts";
 
 export interface Statement {
-  expression: Expression | undefined;
+  statements?: Statement[];
+  expression?: Expression | undefined;
   execute(interpreter: Interpreter): any;
 }
 
@@ -42,5 +43,16 @@ export class VariableStatement implements Statement {
 
   execute(interpreter: Interpreter) {
     interpreter.variableStatement(this);
+  }
+}
+export class BlockStatement implements Statement {
+  statements: Statement[];
+
+  constructor(statements: Statement[]) {
+    this.statements = statements;
+  }
+
+  execute(interpreter: Interpreter) {
+    interpreter.blockStatement(this);
   }
 }
