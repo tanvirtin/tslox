@@ -143,7 +143,6 @@ export default class Interpreter {
   }
 
   evaluate(expression: Expression | undefined) {
-    console.log(expression)
     return expression?.evaluate(this);
   }
 
