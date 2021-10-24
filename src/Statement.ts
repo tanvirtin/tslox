@@ -76,3 +76,21 @@ export class IfStatement implements Statement {
     interpreter.ifStatement(this);
   }
 }
+
+export class WhileStatement implements Statement {
+  condition: Expression | undefined;
+  // This will be a block statement technicall.y
+  body: Statement | undefined;
+
+  constructor(
+    condition: Expression | undefined,
+    body: Statement | undefined,
+  ) {
+    this.condition = condition;
+    this.body = body;
+  }
+
+  execute(interpreter: Interpreter) {
+    interpreter.whileStatement(this);
+  }
+}

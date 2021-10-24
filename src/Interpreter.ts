@@ -6,6 +6,7 @@ import {
   IfStatement,
   Statement,
   VariableStatement,
+  WhileStatement,
 } from "./Statement.ts";
 import {
   AssignmentExpression,
@@ -125,7 +126,6 @@ export default class Interpreter {
       this.environment = previous;
       throw err;
     }
-    return null;
   }
 
   ifStatement(ifStatement: IfStatement) {
@@ -134,10 +134,16 @@ export default class Interpreter {
     } else if (ifStatement.elseBranchStatement != null) {
       this.execute(ifStatement.elseBranchStatement);
     }
-    return;
+  }
+
+  whileStatement(whileStatement: WhileStatement) {
+    while (!!this.evaluate(whileStatement.condition)) {
+      this.execute(whileStatement.body);
+    }
   }
 
   evaluate(expression: Expression | undefined) {
+    console.log(expression)
     return expression?.evaluate(this);
   }
 

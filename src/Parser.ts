@@ -5,6 +5,7 @@ import {
   PrintStatement,
   Statement,
   VariableStatement,
+  WhileStatement,
 } from "./Statement.ts";
 import {
   AssignmentExpression,
@@ -18,8 +19,11 @@ import TokenType from "./TokenType.ts";
 import Token from "./Token.ts";
 
 /*
-  WARNING: This is not any parsing algorithm we are aware of this is a custom algorithm I implemented.
-           Use with caution requires verbose testing beforehand.
+  WARNING: This is my custom parsing algorithm implementation. This is not battle tested.
+           I just wanted to understand the problem better and therefore it was best to implement my own solution.
+           It is similar to the Pratt Parsing algorithm, it is 100% iterative and heavily realies on binding power
+           that I associate different operatos with.
+
   RULES:
   - We keep a stack of binding powers indicating the history of bindings powers so far.
   - Initially this stack starts with [1, 1].
@@ -48,9 +52,9 @@ import Token from "./Token.ts";
     Decrease in binding power -> We complete all pending expressions by binding the it's right arm to whatever is in the completed stack.
                                  New operator's left expression becomes the new completed expression.
     -------------------------------------------------------------------------------------------------------------------------------------
-    NOTE: Unary and assignment expressions which are non binary expressions heavily rely on this mechanism since they will always have the highest binding power.
-          Anytime we encounter a Unary or assignment expressions we always push it to the pending expressions stack.
-          We know anytime any other expression with a lower precedence comes in will force the unary and assignment expressions to complete.
+    NOTE: Unary expressions which are non binary expressions heavily rely on this mechanism since they will always have the highest binding power.
+          Anytime we encounter a Unary expressions we always push it to the pending expressions stack.
+          We know anytime any other expression with a lower precedence comes in will force the unary expressions to complete.
 
   - If the binding power is unchanged the behaviour will be the same when binding power drops.
   - Formula for calculating binding power for an operator is (binding power = user defined value * 10) ** depth
@@ -186,9 +190,19 @@ export default class Parser {
     this.completedExpressions.push(new VariableExpression(operator));
   }
 
+  private unaryExpression(operator: Token) {
+    const bindingPowers: Record<string, number> = {
+      [TokenType.BANG]: 7,
+      [TokenType.MINUS]: 7,
+    };
+    this.setBindingPower(bindingPowers[operator.type]);
+    this.pendingExpressions.push(new UnaryExpression(operator, undefined));
+  }
+
+  // It's secretly a binary expression.
   private assignmentExpression(operator: Token) {
     const bindingPowers: Record<string, number> = {
-      [TokenType.EQUAL]: 7,
+      [TokenType.EQUAL]: 2,
     };
     this.setBindingPower(bindingPowers[operator.type]);
     // If we have pending expression the assignment is invalid, a + b = c, should error out.
@@ -211,15 +225,6 @@ export default class Parser {
     this.pendingExpressions.push(
       new AssignmentExpression(variableExpression.name, operator, undefined),
     );
-  }
-
-  private unaryExpression(operator: Token) {
-    const bindingPowers: Record<string, number> = {
-      [TokenType.BANG]: 7,
-      [TokenType.MINUS]: 7,
-    };
-    this.setBindingPower(bindingPowers[operator.type]);
-    this.pendingExpressions.push(new UnaryExpression(operator, undefined));
   }
 
   private binaryExpression(operator: Token) {
@@ -333,7 +338,7 @@ export default class Parser {
           break;
         default:
           // If we encounter any token while processing the expression that doesn't belong to an expression we end the loop.
-          break;
+          return this.completePendingExpressions(false);
       }
     }
 
@@ -405,6 +410,13 @@ export default class Parser {
     return new IfStatement(condition, thenBranchStatement, elseBranchStatement);
   }
 
+  whileStatement(): Statement {
+    // NOTE** - Parenthesis are optional for declaring conditions in an if statement.
+    const condition: Expression | undefined = this.expression();
+    const body: Statement = this.statement();
+    return new WhileStatement(condition, body);
+  }
+
   // This will get called after we failed to find a declration statement.
   statement() {
     if (this.matchToken(TokenType.IF)) {
@@ -412,6 +424,9 @@ export default class Parser {
     }
     if (this.matchToken(TokenType.PRINT)) {
       return this.printStatement();
+    }
+    if (this.matchToken(TokenType.WHILE)) {
+      return this.whileStatement();
     }
     // "{" indicates we are about to go into a new block.
     if (this.matchToken(TokenType.LEFT_BRACE)) {
