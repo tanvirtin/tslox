@@ -36,6 +36,9 @@ Deno.test("expression", () => {
     "!(1 * 0)": "(! (1 * 0))",
     "a = 3 + 3 * 2": "(a = 3 + (3 * 2))",
     "a = (1 + 2) * 3": "(a = (1 + 2) * 3)",
+    "2 * 5 + 1 and 1": "(((2 * 5) + 1) and 1)",
+    "!(true and true)": "(! (true and true))",
+    "a = -3": "a = (- 3)",
   };
 
   for (const source in assertionTable) {

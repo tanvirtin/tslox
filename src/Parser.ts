@@ -11,7 +11,6 @@ import {
   BinaryExpression,
   Expression,
   LiteralExpression,
-  LogicalExpression,
   UnaryExpression,
   VariableExpression,
 } from "./Expression.ts";
@@ -29,10 +28,14 @@ import Token from "./Token.ts";
       - pendingExpressions (Contains incomplete expreessions waiting to be completed)
       - pendingExpressionBindingPowers (Contains the corresponding binding powers for the pending expressions)
       - completedExpressions (Contains all the completed expressions yet to be dealt with)
-    When binding power incrases we get the last item from completed stack and use it as left for our new operator we just encountered.
-    Increase in binding power -> New operator has more left binding power.
-    NOTE: The assumption is that there will always be an item in the completed stack when this scenario occurs.
-    NOTE: Operators that out weigh the previous binding power must always have a left expression that it needs to bind to.
+
+  - When binding power incrases we get the last item from completed stack and use it as left for our new operator we just encountered.
+    --------------------------------------------------------------------------------------------------------------
+    Increase in binding power -> New operator gets expression from completed stack and assigns it to the left arm.
+    --------------------------------------------------------------------------------------------------------------
+    E.g 2 + 3 * 4, Binding power of * is greater than binding power of +, this results in * pulling 3 away from +.
+    And eventually the expression will look like 2 <- + -> (3 <- * -> 4).
+
   - When binding power drops, we pop the last pending expression and pop the last completed expression.
     Then the last pending expression's right gets assigned to the last completed expression.
     A pending expression will always have a right expression that needs to be completed.
@@ -40,9 +43,17 @@ import Token from "./Token.ts";
     and this logic repeats until there are no more expressions in the completed stack. Unless we have finished computing
     all the tokens, this operation should ONLY repeat if the current binding power of the new operator is greater
     then whatever pending expression we are dealing with.
+    If we encountered a new operator then the left arm of this operator becomes the expression we just combined and completed.
+    -------------------------------------------------------------------------------------------------------------------------------------
     Decrease in binding power -> We complete all pending expressions by binding the it's right arm to whatever is in the completed stack.
+                                 New operator's left expression becomes the new completed expression.
+    -------------------------------------------------------------------------------------------------------------------------------------
+    NOTE: Unary and assignment expressions which are non binary expressions heavily rely on this mechanism since they will always have the highest binding power.
+          Anytime we encounter a Unary or assignment expressions we always push it to the pending expressions stack.
+          We know anytime any other expression with a lower precedence comes in will force the unary and assignment expressions to complete.
+
   - If the binding power is unchanged the behaviour will be the same when binding power drops.
-  - Formula for calculating binding power for an operator is (binding power = user defined value)**depth
+  - Formula for calculating binding power for an operator is (binding power = user defined value * 10) ** depth
   - Anything in inside parenthesis will bump up the depth variable. The depth variable drops when the code
     leaves the right parenthesis. This is how we controll the right and left tug of war via binding power.
 */
@@ -136,7 +147,7 @@ export default class Parser {
   }
 
   private setBindingPower(value: number) {
-    this.bindingPowerHistory.push(value ** this.depth);
+    this.bindingPowerHistory.push((value * 10) ** this.depth);
   }
 
   private currentBindingPower() {
@@ -177,7 +188,7 @@ export default class Parser {
 
   private assignmentExpression(operator: Token) {
     const bindingPowers: Record<string, number> = {
-      [TokenType.EQUAL]: 8,
+      [TokenType.EQUAL]: 7,
     };
     this.setBindingPower(bindingPowers[operator.type]);
     // If we have pending expression the assignment is invalid, a + b = c, should error out.
@@ -213,6 +224,8 @@ export default class Parser {
 
   private binaryExpression(operator: Token) {
     const bindingPowers: Record<string, number> = {
+      [TokenType.OR]: 2,
+      [TokenType.AND]: 2,
       [TokenType.BANG_EQUAL]: 3,
       [TokenType.EQUAL_EQUAL]: 3,
       [TokenType.GREATER]: 4,
@@ -304,6 +317,12 @@ export default class Parser {
           this.isBinaryExpression() &&
           this.matchToken(TokenType.SLASH, TokenType.STAR)
         ):
+          this.binaryExpression(token);
+          break;
+        case this.matchToken(TokenType.OR):
+          this.binaryExpression(token);
+          break;
+        case this.matchToken(TokenType.AND):
           this.binaryExpression(token);
           break;
         case this.matchToken(TokenType.LEFT_PAREN):

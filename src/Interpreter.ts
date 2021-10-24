@@ -55,6 +55,10 @@ export default class Interpreter {
         return left !== right;
       case TokenType.EQUAL_EQUAL:
         return left === right;
+      case TokenType.OR:
+        return left || right;
+      case TokenType.AND:
+        return left && right;
     }
 
     return null;
