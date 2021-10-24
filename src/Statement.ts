@@ -62,7 +62,11 @@ export class IfStatement implements Statement {
   thenBranchStatement: Statement | undefined;
   elseBranchStatement: Statement | undefined;
 
-  constructor(condition: Expression | undefined, thenBranchStatement: Statement | undefined, elseBranchStatement: Statement | undefined) {
+  constructor(
+    condition: Expression | undefined,
+    thenBranchStatement: Statement | undefined,
+    elseBranchStatement: Statement | undefined,
+  ) {
     this.condition = condition;
     this.thenBranchStatement = thenBranchStatement;
     this.elseBranchStatement = elseBranchStatement;

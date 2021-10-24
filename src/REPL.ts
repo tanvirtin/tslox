@@ -6,7 +6,7 @@ export default class REPL {
   private interpreter: Interpreter;
 
   constructor() {
-      this.interpreter = new Interpreter();
+    this.interpreter = new Interpreter();
   }
   // We can never know what type it will be when it returns because it never returns, it's returning itself.
   loop(): any {
@@ -19,7 +19,7 @@ export default class REPL {
     const parser = new Parser(tokens);
     try {
       const statements = parser.parse();
-      this.interpreter.interpret(statements)
+      this.interpreter.interpret(statements);
     } catch (err) {
       console.error(err);
     }

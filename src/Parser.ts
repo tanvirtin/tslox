@@ -1,18 +1,18 @@
 import {
+  BlockStatement,
   ExpressionStatement,
+  IfStatement,
   PrintStatement,
   Statement,
   VariableStatement,
-  BlockStatement,
-  IfStatement,
 } from "./Statement.ts";
 import {
+  AssignmentExpression,
   BinaryExpression,
   Expression,
   LiteralExpression,
   UnaryExpression,
   VariableExpression,
-  AssignmentExpression,
 } from "./Expression.ts";
 import TokenType from "./TokenType.ts";
 import Token from "./Token.ts";
@@ -29,7 +29,7 @@ import Token from "./Token.ts";
       - pendingExpressionBindingPowers (Contains the corresponding binding powers for the pending expressions)
       - completedExpressions (Contains all the completed expressions yet to be dealt with)
     When binding power incrases we get the last item from completed stack and use it as left for our new operator we just encountered.
-    Increase in binding power -> New operator has more left binding power. 
+    Increase in binding power -> New operator has more left binding power.
     NOTE: The assumption is that there will always be an item in the completed stack when this scenario occurs.
     NOTE: Operators that out weigh the previous binding power must always have a left expression that it needs to bind to.
   - When binding power drops, we pop the last pending expression and pop the last completed expression.
@@ -39,7 +39,7 @@ import Token from "./Token.ts";
     and this logic repeats until there are no more expressions in the completed stack. Unless we have finished computing
     all the tokens, this operation should ONLY repeat if the current binding power of the new operator is greater
     then whatever pending expression we are dealing with.
-    Decrease in binding power -> We complete all pending expressions by binding the it's right arm to whatever is in the completed stack. 
+    Decrease in binding power -> We complete all pending expressions by binding the it's right arm to whatever is in the completed stack.
   - If the binding power is unchanged the behaviour will be the same when binding power drops.
   - Formula for calculating binding power for an operator is (binding power = user defined value)**depth
   - Anything in inside parenthesis will bump up the depth variable. The depth variable drops when the code
@@ -109,7 +109,7 @@ export default class Parser {
   }
 
   private completePendingExpressions(
-    respect_bindingPower: boolean,
+    respectBindingPower: boolean,
   ): Expression | undefined {
     let lastPendingExpression;
     while (this.hasCompletedExpressions()) {
@@ -117,7 +117,7 @@ export default class Parser {
       var lastPendingBindingPower = this.pendingExpressionBindingPowers.at(-1);
       var lastCompletedExpression = this.completedExpressions.pop();
       if (
-        respect_bindingPower && lastPendingBindingPower &&
+        respectBindingPower && lastPendingBindingPower &&
         this.currentBindingPower() > lastPendingBindingPower
       ) {
         return lastCompletedExpression;
@@ -175,31 +175,55 @@ export default class Parser {
   }
 
   private assignmentExpression(operator: Token) {
+    const bindingPowers: Record<string, number> = {
+      [TokenType.EQUAL]: 8,
+    };
+    this.setBindingPower(bindingPowers[operator.type]);
     // If we have pending expression the assignment is invalid, a + b = c, should error out.
     if (this.pendingExpressions.length !== 0) {
-      throw new Error('Invalid identier for assignment')
+      throw new Error("Invalid identier for assignment");
     }
     // Once we encounter "=" we need to pop the last item from the completedExpressions stack.
     // This expression will actually be the Identifier token expression, which is just a LiteralExpression.
     const variableExpression = this.completedExpressions.pop();
     if (!(variableExpression instanceof VariableExpression)) {
-      throw new Error('Invalid variable expression');
+      throw new Error("Invalid variable expression");
     }
     if (variableExpression == null) {
-      throw new Error('No identifier found for the assignment');
+      throw new Error("No identifier found for the assignment");
     }
     if (variableExpression.name == null) {
-      throw new Error('Identifier is not a token');
+      throw new Error("Identifier is not a token");
     }
     // We push it to the pending expressions stack.
-    this.pendingExpressions.push(new AssignmentExpression(variableExpression.name, operator, undefined))
+    this.pendingExpressions.push(
+      new AssignmentExpression(variableExpression.name, operator, undefined),
+    );
   }
 
   private unaryExpression(operator: Token) {
+    const bindingPowers: Record<string, number> = {
+      [TokenType.BANG]: 7,
+      [TokenType.MINUS]: 7,
+    };
+    this.setBindingPower(bindingPowers[operator.type]);
     this.pendingExpressions.push(new UnaryExpression(operator, undefined));
   }
 
   private binaryExpression(operator: Token) {
+    const bindingPowers: Record<string, number> = {
+      [TokenType.BANG_EQUAL]: 3,
+      [TokenType.EQUAL_EQUAL]: 3,
+      [TokenType.GREATER]: 4,
+      [TokenType.GREATER_EQUAL]: 4,
+      [TokenType.LESS]: 4,
+      [TokenType.LESS_EQUAL]: 4,
+      [TokenType.MINUS]: 5,
+      [TokenType.PLUS]: 5,
+      [TokenType.SLASH]: 6,
+      [TokenType.STAR]: 6,
+    };
+    this.setBindingPower(bindingPowers[operator.type]);
     if (this.hasBindingPowerIncreased()) {
       var expression = this.completedExpressions.pop();
     } else {
@@ -234,10 +258,9 @@ export default class Parser {
         this.literalExpression(true);
       } else if (this.matchToken(TokenType.NIL)) {
         this.literalExpression(false);
-      // Assignments done on a variable is actually an expression. (var a = 3; print a = 99;) should output 99, since print = 99; produces a value.
+        // Assignments done on a variable is actually an expression. (var a = 3; print a = 99;) should output 99, since print = 99; produces a value.
       } else if (this.matchToken(TokenType.EQUAL)) {
         // NOTE: we just need to look for the equal sign.
-        this.setBindingPower(8);
         this.assignmentExpression(token);
       } else if (this.matchToken(TokenType.IDENTIFIER)) {
         this.variableExpression(token);
@@ -245,13 +268,11 @@ export default class Parser {
         this.isUnaryExpression() &&
         this.matchToken(TokenType.BANG, TokenType.MINUS)
       ) {
-        this.setBindingPower(7);
         this.unaryExpression(token);
       } else if (
         this.isBinaryExpression() &&
         this.matchToken(TokenType.BANG_EQUAL, TokenType.EQUAL_EQUAL)
       ) {
-        this.setBindingPower(3);
         this.binaryExpression(token);
       } else if (
         this.isBinaryExpression() &&
@@ -262,19 +283,16 @@ export default class Parser {
           TokenType.LESS_EQUAL,
         )
       ) {
-        this.setBindingPower(4);
         this.binaryExpression(token);
       } else if (
         this.isBinaryExpression() &&
         this.matchToken(TokenType.MINUS, TokenType.PLUS)
       ) {
-        this.setBindingPower(5);
         this.binaryExpression(token);
       } else if (
         this.isBinaryExpression() &&
         this.matchToken(TokenType.SLASH, TokenType.STAR)
       ) {
-        this.setBindingPower(6);
         this.binaryExpression(token);
       } else if (this.matchToken(TokenType.LEFT_PAREN)) {
         ++this.depth;

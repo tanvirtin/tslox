@@ -1,4 +1,4 @@
-import Token from './Token.ts';
+import Token from "./Token.ts";
 
 export default class Environment {
   private values: Record<string, any> = {};
@@ -14,7 +14,7 @@ export default class Environment {
 
   get(name: Token): any {
     if (name.lexeme in this.values) {
-      return this.values[name.lexeme]
+      return this.values[name.lexeme];
     }
     // NOTE**: This is the HEART of lexical scoping.
     //         It is recursive in nature.

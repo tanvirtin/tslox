@@ -110,6 +110,8 @@ export class AssignmentExpression implements Expression {
   }
 
   toString(): string {
-    return `${this.left.lexeme} ${this.operator.lexeme} ${toString(this.right)}`
+    return `${this.left.lexeme} ${this.operator.lexeme} ${
+      toString(this.right)
+    }`;
   }
 }

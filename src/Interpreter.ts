@@ -1,18 +1,18 @@
-import Environment from './Environment.ts';
+import Environment from "./Environment.ts";
 import TokenType from "./TokenType.ts";
 import { Expression } from "./Expression.ts";
 import {
+  BlockStatement,
+  IfStatement,
   Statement,
   VariableStatement,
-  BlockStatement,
-  IfStatement
 } from "./Statement.ts";
 import {
+  AssignmentExpression,
   BinaryExpression,
   LiteralExpression,
   UnaryExpression,
   VariableExpression,
-  AssignmentExpression
 } from "./Expression.ts";
 
 // Interpreter is really a visitor for the expression nodes of the abstract syntax tree.
@@ -76,15 +76,15 @@ export default class Interpreter {
   // Retrieves a variable from the environment.
   variableExpression(expression: VariableExpression) {
     // We retrieve the variable from the environment using the token.
-    return this.environment.get(expression.name)
+    return this.environment.get(expression.name);
   }
 
   // Heart of the assignment logic.
   assignmentExpression(expression: AssignmentExpression) {
     // Evaluate the right side and extract the value.
-    const value = this.evaluate(expression.right)
+    const value = this.evaluate(expression.right);
     // Then assign
-    this.environment.assign(expression.left, value)
+    this.environment.assign(expression.left, value);
     return value;
   }
 
@@ -102,7 +102,7 @@ export default class Interpreter {
   variableStatement(statement: VariableStatement) {
     let value;
     if (statement.expression != null) {
-      value = this.evaluate(statement.expression); 
+      value = this.evaluate(statement.expression);
     }
     this.environment.define(statement.name.lexeme, value);
   }
@@ -111,7 +111,7 @@ export default class Interpreter {
     const previous = this.environment;
     // Replace the current environment with a new environment.
     // But we make sure that the new environment points to the previous one.
-    this.environment = new Environment(this.environment)
+    this.environment = new Environment(this.environment);
     try {
       for (const statement of blockStatement.statements) {
         this.execute(statement);
@@ -130,7 +130,7 @@ export default class Interpreter {
     } else if (ifStatement.elseBranchStatement != null) {
       this.execute(ifStatement.elseBranchStatement);
     }
-    return
+    return;
   }
 
   evaluate(expression: Expression | undefined) {
