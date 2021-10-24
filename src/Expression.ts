@@ -93,8 +93,29 @@ export class BinaryExpression implements Expression {
   }
 }
 
-// TODO might turn this into a Statement later.
 export class AssignmentExpression implements Expression {
+  left: Token;
+  operator: Token;
+  right: Expression | undefined;
+
+  constructor(left: Token, operator: Token, value: Expression | undefined) {
+    this.left = left;
+    this.operator = operator;
+    this.right = value;
+  }
+
+  evaluate(interpreter: Interpreter): any {
+    return interpreter.assignmentExpression(this);
+  }
+
+  toString(): string {
+    return `${this.left.lexeme} ${this.operator.lexeme} ${
+      toString(this.right)
+    }`;
+  }
+}
+
+export class LogicalExpression implements Expression {
   left: Token;
   operator: Token;
   right: Expression | undefined;

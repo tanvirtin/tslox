@@ -11,6 +11,7 @@ import {
   BinaryExpression,
   Expression,
   LiteralExpression,
+  LogicalExpression,
   UnaryExpression,
   VariableExpression,
 } from "./Expression.ts";
@@ -248,59 +249,72 @@ export default class Parser {
 
       // We are scavenging for tokens that help us identify parts of an expression.
       // If we encounter any token that is out of ordinary we break the loop.
-      if (this.matchToken(TokenType.NUMBER)) {
-        this.literalExpression((this.previousToken().literal));
-      } else if (this.matchToken(TokenType.STRING)) {
-        this.literalExpression((this.previousToken().literal));
-      } else if (this.matchToken(TokenType.FALSE)) {
-        this.literalExpression(false);
-      } else if (this.matchToken(TokenType.TRUE)) {
-        this.literalExpression(true);
-      } else if (this.matchToken(TokenType.NIL)) {
-        this.literalExpression(false);
+      switch (true) {
+        case this.matchToken(TokenType.NUMBER):
+          this.literalExpression((this.previousToken().literal));
+          break;
+        case this.matchToken(TokenType.STRING):
+          this.literalExpression((this.previousToken().literal));
+          break;
+        case this.matchToken(TokenType.FALSE):
+          this.literalExpression(false);
+          break;
+        case this.matchToken(TokenType.TRUE):
+          this.literalExpression(true);
+          break;
+        case this.matchToken(TokenType.NIL):
+          this.literalExpression(false);
+          break;
         // Assignments done on a variable is actually an expression. (var a = 3; print a = 99;) should output 99, since print = 99; produces a value.
-      } else if (this.matchToken(TokenType.EQUAL)) {
-        // NOTE: we just need to look for the equal sign.
-        this.assignmentExpression(token);
-      } else if (this.matchToken(TokenType.IDENTIFIER)) {
-        this.variableExpression(token);
-      } else if (
-        this.isUnaryExpression() &&
-        this.matchToken(TokenType.BANG, TokenType.MINUS)
-      ) {
-        this.unaryExpression(token);
-      } else if (
-        this.isBinaryExpression() &&
-        this.matchToken(TokenType.BANG_EQUAL, TokenType.EQUAL_EQUAL)
-      ) {
-        this.binaryExpression(token);
-      } else if (
-        this.isBinaryExpression() &&
-        this.matchToken(
-          TokenType.GREATER,
-          TokenType.GREATER_EQUAL,
-          TokenType.LESS,
-          TokenType.LESS_EQUAL,
-        )
-      ) {
-        this.binaryExpression(token);
-      } else if (
-        this.isBinaryExpression() &&
-        this.matchToken(TokenType.MINUS, TokenType.PLUS)
-      ) {
-        this.binaryExpression(token);
-      } else if (
-        this.isBinaryExpression() &&
-        this.matchToken(TokenType.SLASH, TokenType.STAR)
-      ) {
-        this.binaryExpression(token);
-      } else if (this.matchToken(TokenType.LEFT_PAREN)) {
-        ++this.depth;
-      } else if (this.matchToken(TokenType.RIGHT_PAREN)) {
-        --this.depth;
-      } else {
-        // If we encounter any token while processing the expression that doesn't belong to an expression we end the loop.
-        break;
+        case this.matchToken(TokenType.EQUAL):
+          // NOTE: we just need to look for the equal sign.
+          this.assignmentExpression(token);
+          break;
+        case this.matchToken(TokenType.IDENTIFIER):
+          this.variableExpression(token);
+          break;
+        case (this.isUnaryExpression() &&
+          this.matchToken(TokenType.BANG, TokenType.MINUS)):
+          this.unaryExpression(token);
+          break;
+        case (
+          this.isBinaryExpression() &&
+          this.matchToken(TokenType.BANG_EQUAL, TokenType.EQUAL_EQUAL)
+        ):
+          this.binaryExpression(token);
+          break;
+        case (
+          this.isBinaryExpression() &&
+          this.matchToken(
+            TokenType.GREATER,
+            TokenType.GREATER_EQUAL,
+            TokenType.LESS,
+            TokenType.LESS_EQUAL,
+          )
+        ):
+          this.binaryExpression(token);
+          break;
+        case (
+          this.isBinaryExpression() &&
+          this.matchToken(TokenType.MINUS, TokenType.PLUS)
+        ):
+          this.binaryExpression(token);
+          break;
+        case (
+          this.isBinaryExpression() &&
+          this.matchToken(TokenType.SLASH, TokenType.STAR)
+        ):
+          this.binaryExpression(token);
+          break;
+        case this.matchToken(TokenType.LEFT_PAREN):
+          ++this.depth;
+          break;
+        case this.matchToken(TokenType.RIGHT_PAREN):
+          --this.depth;
+          break;
+        default:
+          // If we encounter any token while processing the expression that doesn't belong to an expression we end the loop.
+          break;
       }
     }
 
