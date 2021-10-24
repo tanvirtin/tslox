@@ -38,7 +38,7 @@ import Token from "./Token.ts";
 export default class Parser {
   private tokens: Token[];
   private cursor: number = 0;
-  private precidenceHistory: number[] = [1, 1];
+  private precedenceHistory: number[] = [1, 1];
   private pendingPrecedence: number[] = [];
   private pendingExpressions: Expression[] = [];
   private completedExpressions: Expression[] = [];
@@ -124,11 +124,11 @@ export default class Parser {
   }
 
   private setPrecedence(value: number) {
-    this.precidenceHistory.push(value ** this.depth);
+    this.precedenceHistory.push(value ** this.depth);
   }
 
   private currentPrecedence() {
-    const currentPrecedence = this.precidenceHistory.at(-1);
+    const currentPrecedence = this.precedenceHistory.at(-1);
     if (currentPrecedence == null) {
       throw new Error("Failed to retrieve current precedence");
     }
@@ -136,7 +136,7 @@ export default class Parser {
   }
 
   private lastPrecedence() {
-    const lastPrecedence = this.precidenceHistory.at(-2);
+    const lastPrecedence = this.precedenceHistory.at(-2);
     if (lastPrecedence == null) {
       throw new Error("Failed to retrieve last precedence");
     }
