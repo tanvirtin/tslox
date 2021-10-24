@@ -56,3 +56,19 @@ export class BlockStatement implements Statement {
     interpreter.blockStatement(this);
   }
 }
+
+export class IfStatement implements Statement {
+  condition: Expression | undefined;
+  thenBranchStatement: Statement | undefined;
+  elseBranchStatement: Statement | undefined;
+
+  constructor(condition: Expression | undefined, thenBranchStatement: Statement | undefined, elseBranchStatement: Statement | undefined) {
+    this.condition = condition;
+    this.thenBranchStatement = thenBranchStatement;
+    this.elseBranchStatement = elseBranchStatement;
+  }
+
+  execute(interpreter: Interpreter) {
+    interpreter.ifStatement(this);
+  }
+}

@@ -1,7 +1,12 @@
 import Environment from './Environment.ts';
 import TokenType from "./TokenType.ts";
 import { Expression } from "./Expression.ts";
-import { Statement, VariableStatement, BlockStatement } from "./Statement.ts";
+import {
+  Statement,
+  VariableStatement,
+  BlockStatement,
+  IfStatement
+} from "./Statement.ts";
 import {
   BinaryExpression,
   LiteralExpression,
@@ -117,6 +122,15 @@ export default class Interpreter {
       throw err;
     }
     return null;
+  }
+
+  ifStatement(ifStatement: IfStatement) {
+    if (!!this.evaluate(ifStatement.condition)) {
+      this.execute(ifStatement.thenBranchStatement);
+    } else if (ifStatement.elseBranchStatement != null) {
+      this.execute(ifStatement.elseBranchStatement);
+    }
+    return
   }
 
   evaluate(expression: Expression | undefined) {

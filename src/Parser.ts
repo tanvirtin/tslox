@@ -4,6 +4,7 @@ import {
   Statement,
   VariableStatement,
   BlockStatement,
+  IfStatement,
 } from "./Statement.ts";
 import {
   BinaryExpression,
@@ -146,6 +147,14 @@ export default class Parser {
     return this.currentPrecedence() > this.lastPrecedence();
   }
 
+  private isUnaryExpression(): boolean {
+    return !this.hasCompletedExpressions();
+  }
+
+  private isBinaryExpression(): boolean {
+    return this.hasCompletedExpressions();
+  }
+
   private literalExpression(value: any) {
     this.completedExpressions.push(new LiteralExpression(value));
   }
@@ -191,14 +200,6 @@ export default class Parser {
         new BinaryExpression(expression, operator, undefined),
       );
     }
-  }
-
-  private isUnaryExpression(): boolean {
-    return !this.hasCompletedExpressions();
-  }
-
-  private isBinaryExpression(): boolean {
-    return this.hasCompletedExpressions();
   }
 
   expression(): Expression | undefined {
@@ -271,8 +272,8 @@ export default class Parser {
       } else if (this.matchToken(TokenType.RIGHT_PAREN)) {
         --this.depth;
       } else {
-        // If we encounter any token while processing the expression that doesn't belong to an expression is an error.
-        throw new Error(`Illegal token: ${token.lexeme} found in expression`)
+        // If we encounter any token while processing the expression that doesn't belong to an expression we end the loop.
+        break;
       }
     }
 
@@ -333,8 +334,22 @@ export default class Parser {
     return new BlockStatement(statements);
   }
 
+  ifStatement(): Statement {
+    // NOTE** - Parenthesis are optional for declaring conditions in an if statement.
+    const condition: Expression | undefined = this.expression();
+    const thenBranchStatement: Statement = this.statement();
+    let elseBranchStatement;
+    if (this.matchToken(TokenType.ELSE)) {
+      elseBranchStatement = this.statement();
+    }
+    return new IfStatement(condition, thenBranchStatement, elseBranchStatement);
+  }
+
   // This will get called after we failed to find a declration statement.
   statement() {
+    if (this.matchToken(TokenType.IF)) {
+      return this.ifStatement();
+    }
     if (this.matchToken(TokenType.PRINT)) {
       return this.printStatement();
     }
