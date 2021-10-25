@@ -1,3 +1,6 @@
+// TODO: Fix literal values. The literal tokens such as true and false contains no values.
+// TODO: Add variable expression logic
+// TODO: Add assignment expression logic
 import {
   BlockStatement,
   ExpressionStatement,
@@ -8,79 +11,230 @@ import {
   WhileStatement,
 } from "./Statement.ts";
 import {
-  AssignmentExpression,
   BinaryExpression,
   Expression,
   LiteralExpression,
   UnaryExpression,
   VariableExpression,
+  AssignmentExpression,
 } from "./Expression.ts";
 import TokenType from "./TokenType.ts";
 import Token from "./Token.ts";
 
-/*
-  WARNING: This is my custom parsing algorithm implementation. This is not battle tested.
-           I just wanted to understand the problem better and therefore it was best to implement my own solution.
-           It is similar to the Pratt Parsing algorithm, it is 100% iterative and heavily realies on binding power
-           that I associate different operatos with.
+// IMPORTANT: Higher the precedence the higher the binding power. For example 2 + 5 * 2, results in (2 + (5 * 2)) and not ((2 + 5) * 2) because "*" has
+//            a precedence of 5 in comparison to "+" which is a 4. This means "*" with it's higher binding power pulls the expression 5 away from "+".
+//            This is important, higher precedence on a BINARY/LEFT DENOTATION (LED) operator will increase it's LEFT binding power. This is why we give
+//            Prefix expressions (null denotation) such high precedence, so that the binary expression can trump their precedence and their left binding
+//            power will always be less.
 
-  RULES:
-  - We keep a stack of binding powers indicating the history of bindings powers so far.
-  - Initially this stack starts with [1, 1].
-  - Encountering a particular operator might add a binding power to this stack.
-  - We will keep three primary stacks for expression computation:
-      - pendingExpressions (Contains incomplete expreessions waiting to be completed)
-      - pendingExpressionBindingPowers (Contains the corresponding binding powers for the pending expressions)
-      - completedExpressions (Contains all the completed expressions yet to be dealt with)
+// - A “null denotation”, short nud, (most notably, prefix operators).
+// - A “left denotation”, short led, (most notably, infix and postfix operators).
 
-  - When binding power incrases we get the last item from completed stack and use it as left for our new operator we just encountered.
-    --------------------------------------------------------------------------------------------------------------
-    Increase in binding power -> New operator gets expression from completed stack and assigns it to the left arm.
-    --------------------------------------------------------------------------------------------------------------
-    E.g 2 + 3 * 4, Binding power of * is greater than binding power of +, this results in * pulling 3 away from +.
-    And eventually the expression will look like 2 <- + -> (3 <- * -> 4).
+type NullDenotationParselet = () => Expression;
+// Left denotation parselet will always take a left expression. It will have a higher binding power.
+type LeftDenotationParselet = (leftExpression: Expression) => Expression;
 
-  - When binding power drops, we pop the last pending expression and pop the last completed expression.
-    Then the last pending expression's right gets assigned to the last completed expression.
-    A pending expression will always have a right expression that needs to be completed.
-    After we complete the binding the expression is now completed, it then gets pushed to the completed stack,
-    and this logic repeats until there are no more expressions in the completed stack. Unless we have finished computing
-    all the tokens, this operation should ONLY repeat if the current binding power of the new operator is greater
-    then whatever pending expression we are dealing with.
-    If we encountered a new operator then the left arm of this operator becomes the expression we just combined and completed.
-    -------------------------------------------------------------------------------------------------------------------------------------
-    Decrease in binding power -> We complete all pending expressions by binding the it's right arm to whatever is in the completed stack.
-                                 New operator's left expression becomes the new completed expression.
-    -------------------------------------------------------------------------------------------------------------------------------------
-    NOTE: Unary expressions which are non binary expressions heavily rely on this mechanism since they will always have the highest binding power.
-          Anytime we encounter a Unary expressions we always push it to the pending expressions stack.
-          We know anytime any other expression with a lower precedence comes in will force the unary expressions to complete.
-
-  - If the binding power is unchanged the behaviour will be the same when binding power drops.
-  - Formula for calculating binding power for an operator is (binding power = user defined value * 10) ** depth
-  - Anything in inside parenthesis will bump up the depth variable. The depth variable drops when the code
-    leaves the right parenthesis. This is how we controll the right and left tug of war via binding power.
-*/
+export enum Precedence {
+  LOWEST = 1,
+  EQUALS = 2,
+  LESSGREATER = 3,
+  TERM = 4,
+  FACTOR = 5,
+  PREFIX = 6,
+}
 
 export default class Parser {
   private tokens: Token[];
   private cursor: number = 0;
-  private bindingPowerHistory: number[] = [1, 1];
-  private pendingExpressionBindingPowers: number[] = [];
-  private pendingExpressions: Expression[] = [];
-  private completedExpressions: Expression[] = [];
-  private depth = 1;
+  private nullDenotationParselets: Record<string, NullDenotationParselet> = {};
+  private leftDenotationParslets: Record<string, LeftDenotationParselet> = {};
+  private tokenPrecedence: Record<string, Precedence> = {
+    [TokenType.EQUAL_EQUAL]: Precedence.EQUALS,
+    [TokenType.BANG_EQUAL]: Precedence.EQUALS,
+    [TokenType.GREATER]: Precedence.LESSGREATER,
+    [TokenType.LESS]: Precedence.LESSGREATER,
+    [TokenType.PLUS]: Precedence.TERM,
+    [TokenType.MINUS]: Precedence.TERM,
+    [TokenType.SLASH]: Precedence.FACTOR,
+    [TokenType.STAR]: Precedence.FACTOR,
+  }
 
   constructor(tokens: Token[]) {
     this.tokens = tokens;
+
+    // Literals
+    this.registerNullDenotationParselet(
+      TokenType.NUMBER,
+      this.literalParselet.bind(this),
+    );
+    this.registerNullDenotationParselet(
+      TokenType.STRING,
+      this.literalParselet.bind(this),
+    );
+    this.registerNullDenotationParselet(
+      TokenType.FALSE,
+      this.literalParselet.bind(this),
+    );
+    this.registerNullDenotationParselet(
+      TokenType.TRUE,
+      this.literalParselet.bind(this),
+    );
+    this.registerNullDenotationParselet(
+      TokenType.NIL,
+      this.literalParselet.bind(this),
+    );
+    this.registerNullDenotationParselet(
+      TokenType.EQUAL,
+      this.literalParselet.bind(this),
+    );
+    this.registerNullDenotationParselet(
+      TokenType.IDENTIFIER,
+      this.literalParselet.bind(this),
+    );
+
+    // Grouping expression
+    this.registerNullDenotationParselet(
+      TokenType.LEFT_PAREN,
+      this.groupingParselet.bind(this),
+    )
+
+    // Operators with no left expressions.
+    this.registerNullDenotationParselet(
+      TokenType.MINUS,
+      this.nullDenotationParselet.bind(this),
+    );
+    this.registerNullDenotationParselet(
+      TokenType.BANG,
+      this.nullDenotationParselet.bind(this),
+    );
+
+    // Oeprators with left expressions.
+    this.registerLeftDenotationParselet(
+      TokenType.BANG_EQUAL,
+      this.leftDenotationParselet.bind(this),
+    );
+    this.registerLeftDenotationParselet(
+      TokenType.EQUAL_EQUAL,
+      this.leftDenotationParselet.bind(this),
+    );
+    this.registerLeftDenotationParselet(
+      TokenType.GREATER,
+      this.leftDenotationParselet.bind(this),
+    );
+    this.registerLeftDenotationParselet(
+      TokenType.GREATER_EQUAL,
+      this.leftDenotationParselet.bind(this),
+    );
+    this.registerLeftDenotationParselet(
+      TokenType.LESS,
+      this.leftDenotationParselet.bind(this),
+    );
+    this.registerLeftDenotationParselet(
+      TokenType.LESS_EQUAL,
+      this.leftDenotationParselet.bind(this),
+    );
+    this.registerLeftDenotationParselet(
+      TokenType.MINUS,
+      this.leftDenotationParselet.bind(this),
+    );
+    this.registerLeftDenotationParselet(
+      TokenType.PLUS,
+      this.leftDenotationParselet.bind(this),
+    );
+    this.registerLeftDenotationParselet(
+      TokenType.SLASH,
+      this.leftDenotationParselet.bind(this),
+    );
+    this.registerLeftDenotationParselet(
+      TokenType.STAR,
+      this.leftDenotationParselet.bind(this),
+    );
+    this.registerLeftDenotationParselet(
+      TokenType.OR,
+      this.leftDenotationParselet.bind(this),
+    );
+    this.registerLeftDenotationParselet(
+      TokenType.AND,
+      this.leftDenotationParselet.bind(this),
+    );
   }
 
-  private previousToken(): Token {
-    return this.tokens[this.cursor - 1];
+  private registerNullDenotationParselet(
+    token: TokenType,
+    nullDenotationParselet: NullDenotationParselet,
+  ) {
+    this.nullDenotationParselets[token] = nullDenotationParselet;
+  }
+
+  private registerLeftDenotationParselet(
+    token: TokenType,
+    leftDenotationParselet: LeftDenotationParselet,
+  ) {
+    this.leftDenotationParslets[token] = leftDenotationParselet;
+  }
+
+  private literalParselet(): Expression {
+    const token: Token = this.currentToken();
+    return new LiteralExpression(token.literal);
+  }
+
+  private groupingParselet(): Expression {
+    // Advance the token first as we have successfully encountered a "(".
+    this.advanceToken();
+    const expression = this.expression(Precedence.LOWEST);
+    // We have to make sure that the next token is actually a ")".
+    this.assertNextToken(TokenType.RIGHT_BRACE, `Expected ")" after grouping expression got ${this.nextToken().lexeme} instead`);
+    // We advance the token again because we are expecting the next token to be ")".
+    this.advanceToken();
+    return expression;
+  }
+
+  // AKA prefixParselet.
+  private nullDenotationParselet(): Expression {
+    // Store the current token.
+    const operatorToken = this.currentToken();
+
+    // After storing the current token which is the operator, we move to the next token, preparing us for our next expression call.
+    this.advanceToken();
+
+    // We call this.expression which kick starts a recursive call and this function will pend in the stack for the recursive calls to complete.
+    // IMPORTANT: Higher the precedence the higher the binding power. For example 2 + 5 * 2, results in (2 + (5 * 2)) and not ((2 + 5) * 2) because "*" has
+    //            a precedence of 5 in comparison to "+" which is a 4. This means "*" with it's higher binding power pulls the expression 5 away from "+".
+    //            This is important, higher precedence on a BINARY/LEFT DENOTATION (LED) operator will increase it's LEFT binding power. This is why we give
+    //            Prefix expressions (null denotation) such high precedence, so that the binary expression can trump their precedence and their left binding
+    //            power will always be less.
+
+    const rightExpression = this.expression(Precedence.PREFIX);
+
+    return new UnaryExpression(operatorToken, rightExpression);
+  }
+
+  private leftDenotationParselet(leftExpression: Expression): Expression {
+    // Store the operator token.
+    const operatorToken = this.currentToken();
+
+    // Before we advance the token we also need to get the operator precedence.
+    const operatorPrecedence: number = this.getTokenPrecedence(this.currentToken())
+
+    // After storing the current token which is the operator, we move to the next token.
+    this.advanceToken();
+
+    // We call this.expression which kick starts a recursive call and this function will pend in the stack for the recursive calls to complete.
+    const rightExpression = this.expression(operatorPrecedence);
+
+    return new BinaryExpression(leftExpression, operatorToken, rightExpression);
   }
 
   private currentToken(): Token {
     return this.tokens[this.cursor];
+  }
+
+  private nextToken(): Token {
+    return this.tokens[this.cursor + 1];
+  }
+
+  private getTokenPrecedence(token: Token): number {
+    return this.tokenPrecedence[token.type] || Precedence.LOWEST;
   }
 
   // End of Token
@@ -88,14 +242,19 @@ export default class Parser {
     return this.currentToken().type === TokenType.EOF;
   }
 
-  private checkToken(type: TokenType): boolean {
+  private checkCurrentToken(type: TokenType): boolean {
     if (this.endOfToken()) return false;
     return this.currentToken().type == type;
   }
 
-  private matchToken(...types: TokenType[]): boolean {
+  private checkNextToken(type: TokenType): boolean {
+    if (this.endOfToken()) return false;
+    return this.nextToken().type == type;
+  }
+
+  private matchCurrentToken(...types: TokenType[]): boolean {
     for (const type of types) {
-      if (this.checkToken(type)) {
+      if (this.checkCurrentToken(type)) {
         this.advanceToken();
         return true;
       }
@@ -111,8 +270,8 @@ export default class Parser {
 
   // Consume token expects a token of a certain type to be the next token.
   // If token is not found, an error is thrown otherwise the token is advanced.
-  private consumeToken(type: TokenType, message: string) {
-    if (this.checkToken(type)) {
+  private consumeCurrentToken(type: TokenType, message: string) {
+    if (this.checkCurrentToken(type)) {
       const token = this.currentToken();
       this.advanceToken();
       return token;
@@ -120,256 +279,94 @@ export default class Parser {
     throw new Error(message);
   }
 
-  private hasCompletedExpressions() {
-    return this.completedExpressions.length !== 0;
-  }
-
-  private completePendingExpressions(
-    respectBindingPower: boolean,
-  ): Expression | undefined {
-    let lastPendingExpression;
-    while (this.hasCompletedExpressions()) {
-      lastPendingExpression = this.pendingExpressions.at(-1);
-      var lastPendingBindingPower = this.pendingExpressionBindingPowers.at(-1);
-      var lastCompletedExpression = this.completedExpressions.pop();
-      if (
-        respectBindingPower && lastPendingBindingPower &&
-        this.currentBindingPower() > lastPendingBindingPower
-      ) {
-        return lastCompletedExpression;
-      }
-      if (lastPendingExpression != null) {
-        this.pendingExpressions.pop();
-        this.pendingExpressionBindingPowers.pop();
-        lastPendingExpression.right = lastCompletedExpression;
-        this.completedExpressions.push(lastPendingExpression);
-      } else {
-        lastPendingExpression = lastCompletedExpression;
-      }
+  private assertCurrentToken(type: TokenType, message: string) {
+    if (this.checkCurrentToken(type)) {
+      throw new Error(message);
     }
-    return lastPendingExpression;
   }
 
-  private setBindingPower(value: number) {
-    this.bindingPowerHistory.push((value * 10) ** this.depth);
-  }
-
-  private currentBindingPower() {
-    const currentBindingPower = this.bindingPowerHistory.at(-1);
-    if (currentBindingPower == null) {
-      throw new Error("Failed to retrieve current bindingPower");
+  private assertNextToken(type: TokenType, message: string) {
+    if (this.checkNextToken(type)) {
+      throw new Error(message);
     }
-    return currentBindingPower;
   }
 
-  private lastBindingPower() {
-    const lastBindingPower = this.bindingPowerHistory.at(-2);
-    if (lastBindingPower == null) {
-      throw new Error("Failed to retrieve last bindingPower");
-    }
-    return lastBindingPower;
-  }
+  expression(currentPrecedence: number = Precedence.LOWEST): Expression {
+    // We store the current token. We will always assume that the initial token will be a null denotation token.
+    // This includes a number, identifier, prefix operator etc.
+    const currentToken = this.currentToken();
 
-  private hasBindingPowerIncreased() {
-    return this.currentBindingPower() > this.lastBindingPower();
-  }
+    // We immediately retrieve the null denotation. Null denotation parsers will be any expression which does not require a left expression.
+    const nullDenotationParselet =
+      this.nullDenotationParselets[currentToken.type];
 
-  private isUnaryExpression(): boolean {
-    return !this.hasCompletedExpressions();
-  }
-
-  private isBinaryExpression(): boolean {
-    return this.hasCompletedExpressions();
-  }
-
-  private literalExpression(value: any) {
-    this.completedExpressions.push(new LiteralExpression(value));
-  }
-
-  private variableExpression(operator: Token) {
-    this.completedExpressions.push(new VariableExpression(operator));
-  }
-
-  private unaryExpression(operator: Token) {
-    const bindingPowers: Record<string, number> = {
-      [TokenType.BANG]: 7,
-      [TokenType.MINUS]: 7,
-    };
-    this.setBindingPower(bindingPowers[operator.type]);
-    this.pendingExpressions.push(new UnaryExpression(operator, undefined));
-  }
-
-  // It's secretly a binary expression.
-  private assignmentExpression(operator: Token) {
-    const bindingPowers: Record<string, number> = {
-      [TokenType.EQUAL]: 2,
-    };
-    this.setBindingPower(bindingPowers[operator.type]);
-    // If we have pending expression the assignment is invalid, a + b = c, should error out.
-    if (this.pendingExpressions.length !== 0) {
-      throw new Error("Invalid identier for assignment");
-    }
-    // Once we encounter "=" we need to pop the last item from the completedExpressions stack.
-    // This expression will actually be the Identifier token expression, which is just a LiteralExpression.
-    const variableExpression = this.completedExpressions.pop();
-    if (!(variableExpression instanceof VariableExpression)) {
-      throw new Error("Invalid variable expression");
-    }
-    if (variableExpression == null) {
-      throw new Error("No identifier found for the assignment");
-    }
-    if (variableExpression.name == null) {
-      throw new Error("Identifier is not a token");
-    }
-    // We push it to the pending expressions stack.
-    this.pendingExpressions.push(
-      new AssignmentExpression(variableExpression.name, operator, undefined),
-    );
-  }
-
-  private binaryExpression(operator: Token) {
-    const bindingPowers: Record<string, number> = {
-      [TokenType.OR]: 2,
-      [TokenType.AND]: 2,
-      [TokenType.BANG_EQUAL]: 3,
-      [TokenType.EQUAL_EQUAL]: 3,
-      [TokenType.GREATER]: 4,
-      [TokenType.GREATER_EQUAL]: 4,
-      [TokenType.LESS]: 4,
-      [TokenType.LESS_EQUAL]: 4,
-      [TokenType.MINUS]: 5,
-      [TokenType.PLUS]: 5,
-      [TokenType.SLASH]: 6,
-      [TokenType.STAR]: 6,
-    };
-    this.setBindingPower(bindingPowers[operator.type]);
-    if (this.hasBindingPowerIncreased()) {
-      var expression = this.completedExpressions.pop();
-    } else {
-      expression = this.completePendingExpressions(true);
-    }
-    if (expression != null) {
-      this.pendingExpressionBindingPowers.push(this.currentBindingPower());
-      this.pendingExpressions.push(
-        new BinaryExpression(expression, operator, undefined),
+    // We always expect a null denotation when we call expression, if a token does not have a null denotation parselet associated with it then it's an error.
+    if (nullDenotationParselet == null) {
+      throw new Error(
+        `Invalid expression, token: ${currentToken.lexeme} does not have a null denotation parselet associated with it`,
       );
     }
-  }
 
-  expression(): Expression | undefined {
-    while (!this.endOfToken()) {
-      // If we encounter a semicolon we break the loop. This indicates that we are done with the expression.
-      if (this.checkToken(TokenType.SEMICOLON)) {
-        break;
+    // This is our potential expression we return. It can also be our left expression
+    // for out next token, which can be an left denotation, which requires a left expression.
+    let leftExpression = nullDenotationParselet();
+
+    // TODO: Right now any token we encounter without a precedence associated with it will prevent the loop from being entered.
+    //       This mechanism should allow us to automatically leave this function.
+    while (
+      !this.endOfToken() &&
+      // IMPORTANT: Higher the precedence the higher the binding power. For example 2 + 5 * 2, results in (2 + (5 * 2)) and not ((2 + 5) * 2) because "*" has
+      //            a precedence of 5 in comparison to "+" which is a 4. This means "*" with it's higher binding power pulls the expression 5 away from "+".
+      //            This is important, higher precedence on a BINARY/LEFT DENOTATION (LED) operator will increase it's LEFT binding power. This is why we give
+      //            Prefix expressions (null denotation) such high precedence, so that the binary expression can trump their precedence and their left binding
+      //            power will always be less.
+      currentPrecedence <
+        this.getTokenPrecedence(this.nextToken())
+    ) {
+      // We advance the token here, this enables us to get the next token that we were checking up in the conditional.
+      this.advanceToken();
+
+      const leftDenotationParselet =
+        this.leftDenotationParslets[this.currentToken().type];
+
+      if (leftDenotationParselet == null) {
+        throw new Error(
+          `Invalid expression, token: ${currentToken.lexeme} does not have a left denotation parselet associated with it`,
+        );
       }
 
-      const token = this.currentToken();
-
-      // We are scavenging for tokens that help us identify parts of an expression.
-      // If we encounter any token that is out of ordinary we break the loop.
-      switch (true) {
-        case this.matchToken(TokenType.NUMBER):
-          this.literalExpression((this.previousToken().literal));
-          break;
-        case this.matchToken(TokenType.STRING):
-          this.literalExpression((this.previousToken().literal));
-          break;
-        case this.matchToken(TokenType.FALSE):
-          this.literalExpression(false);
-          break;
-        case this.matchToken(TokenType.TRUE):
-          this.literalExpression(true);
-          break;
-        case this.matchToken(TokenType.NIL):
-          this.literalExpression(false);
-          break;
-        // Assignments done on a variable is actually an expression. (var a = 3; print a = 99;) should output 99, since print = 99; produces a value.
-        case this.matchToken(TokenType.EQUAL):
-          // NOTE: we just need to look for the equal sign.
-          this.assignmentExpression(token);
-          break;
-        case this.matchToken(TokenType.IDENTIFIER):
-          this.variableExpression(token);
-          break;
-        case (this.isUnaryExpression() &&
-          this.matchToken(TokenType.BANG, TokenType.MINUS)):
-          this.unaryExpression(token);
-          break;
-        case (
-          this.isBinaryExpression() &&
-          this.matchToken(TokenType.BANG_EQUAL, TokenType.EQUAL_EQUAL)
-        ):
-          this.binaryExpression(token);
-          break;
-        case (
-          this.isBinaryExpression() &&
-          this.matchToken(
-            TokenType.GREATER,
-            TokenType.GREATER_EQUAL,
-            TokenType.LESS,
-            TokenType.LESS_EQUAL,
-          )
-        ):
-          this.binaryExpression(token);
-          break;
-        case (
-          this.isBinaryExpression() &&
-          this.matchToken(TokenType.MINUS, TokenType.PLUS)
-        ):
-          this.binaryExpression(token);
-          break;
-        case (
-          this.isBinaryExpression() &&
-          this.matchToken(TokenType.SLASH, TokenType.STAR)
-        ):
-          this.binaryExpression(token);
-          break;
-        case this.matchToken(TokenType.OR):
-          this.binaryExpression(token);
-          break;
-        case this.matchToken(TokenType.AND):
-          this.binaryExpression(token);
-          break;
-        case this.matchToken(TokenType.LEFT_PAREN):
-          ++this.depth;
-          break;
-        case this.matchToken(TokenType.RIGHT_PAREN):
-          --this.depth;
-          break;
-        default:
-          // If we encounter any token while processing the expression that doesn't belong to an expression we end the loop.
-          return this.completePendingExpressions(false);
-      }
+      // We replace the old left expression with the new computed one.
+      leftExpression = leftDenotationParselet(leftExpression);
     }
 
-    return this.completePendingExpressions(false);
+    return leftExpression;
   }
 
   printStatement() {
     // NOTE: The search for tokens if none of the if statements are caught.
     //       Since the ";" token is not in the if statement, the look for
     //       tokens will end immediately returning us the expression made so far.
-    const expression = this.expression();
+    const expression = this.expression(Precedence.LOWEST);
     if (expression == null) {
       throw new Error("No expression provided for the print statement");
     }
     // When expression is a statement it means having a ";" is a must in our language.
-    this.consumeToken(TokenType.SEMICOLON, 'Expected ";" after expression');
+    this.consumeCurrentToken(TokenType.SEMICOLON, 'Expected ";" after expression');
     return new PrintStatement(expression);
   }
 
   expressionStatement() {
-    const expression = this.expression();
+    const expression = this.expression(Precedence.LOWEST);
     if (expression == null) {
       throw new Error("No expression provided for the expression statement");
     }
     // When expression is a statement it means having a ";" is a must in our language.
-    this.consumeToken(TokenType.SEMICOLON, 'Expected ";" after expression');
+    this.consumeCurrentToken(TokenType.SEMICOLON, 'Expected ";" after expression');
     return new ExpressionStatement(expression);
   }
 
   variableStatement() {
-    const name: Token = this.consumeToken(
+    const name: Token = this.consumeCurrentToken(
       TokenType.IDENTIFIER,
       "Expected variable name",
     );
@@ -377,10 +374,10 @@ export default class Parser {
     // We check if the next token is an equal.
     // NOTE**: We are not consuming the equal token, and this is not an assertion
     //         because users can define variables with a nil value such as var a;
-    if (this.matchToken(TokenType.EQUAL)) {
-      expression = this.expression();
+    if (this.matchCurrentToken(TokenType.EQUAL)) {
+      expression = this.expression(Precedence.LOWEST);
     }
-    this.consumeToken(TokenType.SEMICOLON, "Expected variable declaration");
+    this.consumeCurrentToken(TokenType.SEMICOLON, "Expected variable declaration");
     return new VariableStatement(name, expression);
   }
 
@@ -390,21 +387,21 @@ export default class Parser {
     // Until we haven't encountered a right brace or we have not reached the end of all tokens,
     // we will loop through the tokens and add all variable statements inside the list of statements.
     // Block for now will contain a series of statements.
-    while (!this.checkToken(TokenType.RIGHT_BRACE) && !this.endOfToken()) {
+    while (!this.checkCurrentToken(TokenType.RIGHT_BRACE) && !this.endOfToken()) {
       statements.push(this.declaration());
     }
     // We will always expect a RIGHT_BRACE token to end a block.
     // If we reached the end of token before hitting a RIGHT_BRACE, program should error out.
-    this.consumeToken(TokenType.RIGHT_BRACE, "Expect '}' after block.");
+    this.consumeCurrentToken(TokenType.RIGHT_BRACE, "Expect '}' after block.");
     return new BlockStatement(statements);
   }
 
   ifStatement(): Statement {
     // NOTE** - Parenthesis are optional for declaring conditions in an if statement.
-    const condition: Expression | undefined = this.expression();
+    const condition: Expression = this.expression(Precedence.LOWEST);
     const thenBranchStatement: Statement = this.statement();
     let elseBranchStatement;
-    if (this.matchToken(TokenType.ELSE)) {
+    if (this.matchCurrentToken(TokenType.ELSE)) {
       elseBranchStatement = this.statement();
     }
     return new IfStatement(condition, thenBranchStatement, elseBranchStatement);
@@ -412,24 +409,24 @@ export default class Parser {
 
   whileStatement(): Statement {
     // NOTE** - Parenthesis are optional for declaring conditions in an if statement.
-    const condition: Expression | undefined = this.expression();
+    const condition: Expression = this.expression(Precedence.LOWEST);
     const body: Statement = this.statement();
     return new WhileStatement(condition, body);
   }
 
   // This will get called after we failed to find a declration statement.
   statement() {
-    if (this.matchToken(TokenType.IF)) {
+    if (this.matchCurrentToken(TokenType.IF)) {
       return this.ifStatement();
     }
-    if (this.matchToken(TokenType.PRINT)) {
+    if (this.matchCurrentToken(TokenType.PRINT)) {
       return this.printStatement();
     }
-    if (this.matchToken(TokenType.WHILE)) {
+    if (this.matchCurrentToken(TokenType.WHILE)) {
       return this.whileStatement();
     }
     // "{" indicates we are about to go into a new block.
-    if (this.matchToken(TokenType.LEFT_BRACE)) {
+    if (this.matchCurrentToken(TokenType.LEFT_BRACE)) {
       return this.blockStatement();
     }
     // If nothing is found it's probably one of those things were the user just puts an expression with a semicolon.
@@ -439,7 +436,7 @@ export default class Parser {
 
   // We look for declarations first, if we can't find a declaration it's probably some other type of statement.
   declaration() {
-    if (this.matchToken(TokenType.VAR)) {
+    if (this.matchCurrentToken(TokenType.VAR)) {
       return this.variableStatement();
     }
     return this.statement();
