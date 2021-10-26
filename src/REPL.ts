@@ -15,7 +15,7 @@ export default class REPL {
       return this.loop();
     }
     const tokenizer = new Tokenizer(input);
-    const tokens = tokenizer.scanSource();
+    const tokens = tokenizer.tokenize();
     const parser = new Parser(tokens);
     try {
       const statements = parser.parse();

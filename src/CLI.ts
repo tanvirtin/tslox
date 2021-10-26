@@ -26,7 +26,7 @@ export default class CLI {
       Deno.exit(1);
     });
     const tokenizer = new Tokenizer(source);
-    const parser = new Parser(tokenizer.scanSource());
+    const parser = new Parser(tokenizer.tokenize());
     const interpretor = new Interpreter();
     interpretor.interpret(parser.parse());
   }

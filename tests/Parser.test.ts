@@ -8,11 +8,11 @@ import {
 
 Deno.test("expression", () => {
   const assertionTable: Record<string, string> = {
-    // "true": "true",
-    // "false": "false",
-    // "1": "1",
-    // "nil": "false",
-    // '"hello world"': "hello world",
+    "true": "true",
+    "false": "false",
+    "1": "1",
+    "nil": "false",
+    '"hello world"': "hello world",
     "2 + 2 * 5": "(2 + (2 * 5))",
     "2 * 5 - 2": "((2 * 5) - 2)",
     "1 + 2 * 3 - 2": "((1 + (2 * 3)) - 2)",
@@ -29,12 +29,12 @@ Deno.test("expression", () => {
     "1 - - - - - 1 * 3": "(1 - ((- (- (- (- 1)))) * 3))",
     "!-32": "(! (- 32))",
     "-(5 + 5)": "(- (5 + 5))",
-    // "!true == true": "((! true) == true)",
-    // "!(true == true)": "(! (true == true))",
-    // "3 < 5 == true": "((3 < 5) == true)",
-    // "3 > 5 == false": "((3 > 5) == false)",
+    "!true == true": "((! true) == true)",
+    "!(true == true)": "(! (true == true))",
+    "3 < 5 == true": "((3 < 5) == true)",
+    "3 > 5 == false": "((3 > 5) == false)",
+    "!(1 * 0)": "(! (1 * 0))",
     // "!(true and true)": "(! (true and true))",
-    // "!(1 * 0)": "(! (1 * 0))",
     // "a = 3 + 3 * 2": "a = (3 + (3 * 2))",
     // "a = (1 + 2) * 3": "a = ((1 + 2) * 3)",
     // "2 * 5 + 1 and 1": "(((2 * 5) + 1) and 1)",
@@ -44,7 +44,7 @@ Deno.test("expression", () => {
   for (const source in assertionTable) {
     const expected = assertionTable[source];
     const tokenizer = new Tokenizer(source);
-    const parser = new Parser(tokenizer.scanSource());
+    const parser = new Parser(tokenizer.tokenize());
     const expression = parser.expression();
     assertExists(expression);
     assertEquals(expression.toString(), expected);

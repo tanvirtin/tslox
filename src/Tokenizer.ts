@@ -92,25 +92,39 @@ export default class Tokenizer {
       "and": TokenType.AND,
       "class": TokenType.CLASS,
       "else": TokenType.ELSE,
-      "false": TokenType.FALSE,
       "for": TokenType.FOR,
       "fun": TokenType.FUN,
       "if": TokenType.IF,
-      "nil": TokenType.NIL,
       "or": TokenType.OR,
       "print": TokenType.PRINT,
       "return": TokenType.RETURN,
       "super": TokenType.SUPER,
       "this": TokenType.THIS,
-      "true": TokenType.TRUE,
       "var": TokenType.VAR,
       "while": TokenType.WHILE,
     };
+
+    const truthy: Record<string, { literal: boolean, tokenType: TokenType }> = {
+      "true": { 
+        literal: true,
+        tokenType: TokenType.TRUE,
+      },
+      "false": {
+        literal: false,
+        tokenType: TokenType.FALSE,
+      },
+      "nil": {
+        literal: false,
+        tokenType: TokenType.NIL
+      },
+    }
 
     // If text is actually a keyword we return what we find from the map.
     // NOTE: This means that identifiers can either be variables or keywords defined within the system.
     if (text in keywords) {
       this.addToken(keywords[text]);
+    } else if (text in truthy) {
+      this.addToken(truthy[text].tokenType, truthy[text].literal);
     } else {
       this.addToken(TokenType.IDENTIFIER);
     }
@@ -304,7 +318,7 @@ export default class Tokenizer {
     }
   }
 
-  scanSource(): Token[] {
+  tokenize(): Token[] {
     while (!this.isAtEnd()) {
       // Each time we are in the loop body we scan the char for a potential lexeme.
       this.scanChar();

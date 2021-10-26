@@ -2,7 +2,7 @@ import Tokenizer from "../src/Tokenizer.ts";
 
 import { assertEquals } from "https://deno.land/std@0.110.0/testing/asserts.ts";
 
-Deno.test("scanSource", () => {
+Deno.test("tokenize", () => {
   const assertionTable: Record<string, string[]> = {
     "(": ["<Token type=LEFT_PAREN lexeme=( />"],
     ")": ["<Token type=RIGHT_PAREN lexeme=) />"],
@@ -43,24 +43,24 @@ Deno.test("scanSource", () => {
     "and": ["<Token type=AND lexeme=and />"],
     "class": ["<Token type=CLASS lexeme=class />"],
     "else": ["<Token type=ELSE lexeme=else />"],
-    "false": ["<Token type=FALSE lexeme=false />"],
+    "false": ["<Token type=FALSE lexeme=false literal=false />"],
     "for": ["<Token type=FOR lexeme=for />"],
     "fun": ["<Token type=FUN lexeme=fun />"],
     "if": ["<Token type=IF lexeme=if />"],
-    "nil": ["<Token type=NIL lexeme=nil />"],
+    "nil": ["<Token type=NIL lexeme=nil literal=false />"],
     "or": ["<Token type=OR lexeme=or />"],
     "print": ["<Token type=PRINT lexeme=print />"],
     "return": ["<Token type=RETURN lexeme=return />"],
     "super": ["<Token type=SUPER lexeme=super />"],
     "this": ["<Token type=THIS lexeme=this />"],
-    "true": ["<Token type=TRUE lexeme=true />"],
+    "true": ["<Token type=TRUE lexeme=true literal=true />"],
     "var": ["<Token type=VAR lexeme=var />"],
     "while": ["<Token type=WHILE lexeme=while />"],
   };
   for (const source in assertionTable) {
     const expectedTokenStrings = assertionTable[source];
     const tokenizer = new Tokenizer(source);
-    const tokens = tokenizer.scanSource();
+    const tokens = tokenizer.tokenize();
     for (let i = 0; i < tokens.length - 1; ++i) {
       const token = tokens[i];
       const expectedTokenString = expectedTokenStrings[i];
@@ -79,7 +79,7 @@ Deno.test("single line comment", () => {
     3
   `;
   const tokenizer = new Tokenizer(source);
-  const tokens = tokenizer.scanSource();
+  const tokens = tokenizer.tokenize();
   assertEquals(tokens.length, 2);
   assertEquals(
     tokens[0].toString(),
@@ -95,7 +95,7 @@ Deno.test("multi line comment", () => {
     3
   `;
   const tokenizer = new Tokenizer(source);
-  const tokens = tokenizer.scanSource();
+  const tokens = tokenizer.tokenize();
   assertEquals(tokens.length, 2);
   assertEquals(
     tokens[0].toString(),
@@ -111,7 +111,7 @@ Deno.test("unfinished multi line comment", () => {
     3
   `;
   const tokenizer = new Tokenizer(source);
-  const tokens = tokenizer.scanSource();
+  const tokens = tokenizer.tokenize();
   assertEquals(tokens.length, 1);
   assertEquals(tokens[0].toString(), "<Token type=EOF lexeme=\0 />");
 });

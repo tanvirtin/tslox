@@ -1,4 +1,3 @@
-// TODO: Fix literal values. The literal tokens such as true and false contains no values.
 // TODO: Add variable expression logic
 // TODO: Add assignment expression logic
 import {
@@ -101,61 +100,61 @@ export default class Parser {
     // Operators with no left expressions.
     this.registerNullDenotationParselet(
       TokenType.MINUS,
-      this.nullDenotationParselet.bind(this),
+      this.unaryExpressionParselet.bind(this),
     );
     this.registerNullDenotationParselet(
       TokenType.BANG,
-      this.nullDenotationParselet.bind(this),
+      this.unaryExpressionParselet.bind(this),
     );
 
     // Oeprators with left expressions.
     this.registerLeftDenotationParselet(
       TokenType.BANG_EQUAL,
-      this.leftDenotationParselet.bind(this),
+      this.binaryExpressionParselet.bind(this),
     );
     this.registerLeftDenotationParselet(
       TokenType.EQUAL_EQUAL,
-      this.leftDenotationParselet.bind(this),
+      this.binaryExpressionParselet.bind(this),
     );
     this.registerLeftDenotationParselet(
       TokenType.GREATER,
-      this.leftDenotationParselet.bind(this),
+      this.binaryExpressionParselet.bind(this),
     );
     this.registerLeftDenotationParselet(
       TokenType.GREATER_EQUAL,
-      this.leftDenotationParselet.bind(this),
+      this.binaryExpressionParselet.bind(this),
     );
     this.registerLeftDenotationParselet(
       TokenType.LESS,
-      this.leftDenotationParselet.bind(this),
+      this.binaryExpressionParselet.bind(this),
     );
     this.registerLeftDenotationParselet(
       TokenType.LESS_EQUAL,
-      this.leftDenotationParselet.bind(this),
+      this.binaryExpressionParselet.bind(this),
     );
     this.registerLeftDenotationParselet(
       TokenType.MINUS,
-      this.leftDenotationParselet.bind(this),
+      this.binaryExpressionParselet.bind(this),
     );
     this.registerLeftDenotationParselet(
       TokenType.PLUS,
-      this.leftDenotationParselet.bind(this),
+      this.binaryExpressionParselet.bind(this),
     );
     this.registerLeftDenotationParselet(
       TokenType.SLASH,
-      this.leftDenotationParselet.bind(this),
+      this.binaryExpressionParselet.bind(this),
     );
     this.registerLeftDenotationParselet(
       TokenType.STAR,
-      this.leftDenotationParselet.bind(this),
+      this.binaryExpressionParselet.bind(this),
     );
     this.registerLeftDenotationParselet(
       TokenType.OR,
-      this.leftDenotationParselet.bind(this),
+      this.binaryExpressionParselet.bind(this),
     );
     this.registerLeftDenotationParselet(
       TokenType.AND,
-      this.leftDenotationParselet.bind(this),
+      this.binaryExpressionParselet.bind(this),
     );
   }
 
@@ -190,7 +189,7 @@ export default class Parser {
   }
 
   // AKA prefixParselet.
-  private nullDenotationParselet(): Expression {
+  private unaryExpressionParselet(): Expression {
     // Store the current token.
     const operatorToken = this.currentToken();
 
@@ -209,7 +208,7 @@ export default class Parser {
     return new UnaryExpression(operatorToken, rightExpression);
   }
 
-  private leftDenotationParselet(leftExpression: Expression): Expression {
+  private binaryExpressionParselet(leftExpression: Expression): Expression {
     // Store the operator token.
     const operatorToken = this.currentToken();
 

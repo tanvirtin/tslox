@@ -11,6 +11,8 @@ Deno.test("evaluate", () => {
   const assertionTable: Record<string, any> = {
     "true": true,
     "false": false,
+    "!true == true": false,
+    "!(true == true)": false,
     "1": 1,
     "nil": false,
     '"hello world"': "hello world",
@@ -32,8 +34,6 @@ Deno.test("evaluate", () => {
     "1 - - - - - 1 * 3": -2,
     "!-32": false,
     "-(5 + 5)": -10,
-    "!true == true": false,
-    "!(true == true)": false,
     "!(1 * 0)": true,
   };
 
@@ -42,7 +42,7 @@ Deno.test("evaluate", () => {
   for (const source in assertionTable) {
     const expected = assertionTable[source];
     const tokenizer = new Tokenizer(source);
-    const tokens = tokenizer.scanSource();
+    const tokens = tokenizer.tokenize();
     const parser = new Parser(tokens);
     const expression = parser.expression();
     assertExists(expression);
