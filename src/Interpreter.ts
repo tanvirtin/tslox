@@ -13,7 +13,7 @@ import {
   BinaryExpression,
   LiteralExpression,
   UnaryExpression,
-  VariableExpression,
+  IdentifierExpression,
 } from "./Expression.ts";
 
 // Interpreter is really a visitor for the expression nodes of the abstract syntax tree.
@@ -79,7 +79,7 @@ export default class Interpreter {
   }
 
   // Retrieves a variable from the environment.
-  variableExpression(expression: VariableExpression) {
+  IdentifierExpression(expression: IdentifierExpression) {
     // We retrieve the variable from the environment using the token.
     return this.environment.get(expression.name);
   }

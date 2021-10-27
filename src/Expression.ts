@@ -33,7 +33,7 @@ export class LiteralExpression implements Expression {
   }
 }
 
-export class VariableExpression implements Expression {
+export class IdentifierExpression implements Expression {
   name: Token;
 
   constructor(name: Token) {
@@ -41,7 +41,7 @@ export class VariableExpression implements Expression {
   }
 
   evaluate(interpreter: Interpreter): any {
-    return interpreter.variableExpression(this);
+    return interpreter.IdentifierExpression(this);
   }
 
   toString(): string {

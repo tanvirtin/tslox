@@ -1,4 +1,3 @@
-// TODO: Add variable expression logic
 // TODO: Add assignment expression logic
 import {
   BlockStatement,
@@ -14,7 +13,7 @@ import {
   Expression,
   LiteralExpression,
   UnaryExpression,
-  VariableExpression,
+  IdentifierExpression,
   AssignmentExpression,
 } from "./Expression.ts";
 import TokenType from "./TokenType.ts";
@@ -91,7 +90,7 @@ export default class Parser {
     );
     this.registerNullDenotationParselet(
       TokenType.IDENTIFIER,
-      this.literalParselet.bind(this),
+      this.variableParselet.bind(this),
     );
 
     // Grouping expression
@@ -178,6 +177,11 @@ export default class Parser {
   private literalParselet(): Expression {
     const token: Token = this.currentToken();
     return new LiteralExpression(token.literal);
+  }
+
+  private variableParselet(): Expression {
+    const token: Token = this.currentToken();
+    return new IdentifierExpression(token);
   }
 
   private groupingParselet(): Expression {
@@ -352,7 +356,7 @@ export default class Parser {
     if (expression == null) {
       throw new Error("No expression provided for the print statement");
     }
-    // When expression is a statement it means having a ";" is a must in our language.
+    this.advanceToken();
     this.consumeCurrentToken(TokenType.SEMICOLON, 'Expected ";" after expression');
     return new PrintStatement(expression);
   }
@@ -362,7 +366,7 @@ export default class Parser {
     if (expression == null) {
       throw new Error("No expression provided for the expression statement");
     }
-    // When expression is a statement it means having a ";" is a must in our language.
+    this.advanceToken();
     this.consumeCurrentToken(TokenType.SEMICOLON, 'Expected ";" after expression');
     return new ExpressionStatement(expression);
   }
@@ -372,14 +376,16 @@ export default class Parser {
       TokenType.IDENTIFIER,
       "Expected variable name",
     );
-    let expression;
     // We check if the next token is an equal.
     // NOTE**: We are not consuming the equal token, and this is not an assertion
     //         because users can define variables with a nil value such as var a;
-    if (this.matchCurrentToken(TokenType.EQUAL)) {
-      expression = this.expression(Precedence.LOWEST);
+    this.consumeCurrentToken(TokenType.EQUAL, 'Expected "=" after identifier');
+    const expression = this.expression(Precedence.LOWEST);
+    if (expression == null) {
+      throw new Error("No expression provided for the expression statement");
     }
-    this.consumeCurrentToken(TokenType.SEMICOLON, "Expected variable declaration");
+    this.advanceToken();
+    this.consumeCurrentToken(TokenType.SEMICOLON, 'Expected ";" after expression');
     return new VariableStatement(name, expression);
   }
 
@@ -450,7 +456,8 @@ export default class Parser {
     // The while loop kicks start of the scavenging of tokens.
     // NOTE**: this.cursor only progresses within the this.expression call and sub calls.
     while (!this.endOfToken()) {
-      statements.push(this.declaration());
+      const statement = this.declaration()
+      statements.push(statement);
     }
     return statements;
   }
