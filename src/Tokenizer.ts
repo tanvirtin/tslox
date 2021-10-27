@@ -185,8 +185,8 @@ export default class Tokenizer {
 
   // Scan the cursor source character to match a specific language known lexeme.
   // Tokenizer will advance more if it needs to extract a specific lexeme from a sequences of chars.
-  private scanChar(): void {
-    // At each scanChar call, we are going to be dealing with a new lexeme, and therefore new startIndex.
+  private readChar(): void {
+    // At each readChar call, we are going to be dealing with a new lexeme, and therefore new startIndex.
     this.startIndex = this.cursor;
     // We retrieve the current character before advancing to the next.
     const char = this.current();
@@ -321,7 +321,7 @@ export default class Tokenizer {
   tokenize(): Token[] {
     while (!this.isAtEnd()) {
       // Each time we are in the loop body we scan the char for a potential lexeme.
-      this.scanChar();
+      this.readChar();
     }
     this.tokens.push(new Token(TokenType.EOF, "\0", undefined, this.line));
     return this.tokens;

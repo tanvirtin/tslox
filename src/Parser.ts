@@ -35,11 +35,12 @@ type LeftDenotationParselet = (leftExpression: Expression) => Expression;
 
 export enum Precedence {
   LOWEST = 1,
-  EQUALS = 2,
-  LESSGREATER = 3,
-  TERM = 4,
-  FACTOR = 5,
-  PREFIX = 6,
+  COND = 2,
+  EQUALS = 3,
+  LESSGREATER = 4,
+  TERM = 5,
+  FACTOR = 6,
+  PREFIX = 7,
 }
 
 export default class Parser {
@@ -48,6 +49,8 @@ export default class Parser {
   private nullDenotationParselets: Record<string, NullDenotationParselet> = {};
   private leftDenotationParslets: Record<string, LeftDenotationParselet> = {};
   private tokenPrecedence: Record<string, Precedence> = {
+    [TokenType.AND]: Precedence.COND,
+    [TokenType.OR]: Precedence.COND,
     [TokenType.EQUAL_EQUAL]: Precedence.EQUALS,
     [TokenType.BANG_EQUAL]: Precedence.EQUALS,
     [TokenType.GREATER]: Precedence.LESSGREATER,
@@ -100,61 +103,61 @@ export default class Parser {
     // Operators with no left expressions.
     this.registerNullDenotationParselet(
       TokenType.MINUS,
-      this.unaryExpressionParselet.bind(this),
+      this.unaryExpression.bind(this),
     );
     this.registerNullDenotationParselet(
       TokenType.BANG,
-      this.unaryExpressionParselet.bind(this),
+      this.unaryExpression.bind(this),
     );
 
     // Oeprators with left expressions.
     this.registerLeftDenotationParselet(
       TokenType.BANG_EQUAL,
-      this.binaryExpressionParselet.bind(this),
+      this.binaryParselet.bind(this),
     );
     this.registerLeftDenotationParselet(
       TokenType.EQUAL_EQUAL,
-      this.binaryExpressionParselet.bind(this),
+      this.binaryParselet.bind(this),
     );
     this.registerLeftDenotationParselet(
       TokenType.GREATER,
-      this.binaryExpressionParselet.bind(this),
+      this.binaryParselet.bind(this),
     );
     this.registerLeftDenotationParselet(
       TokenType.GREATER_EQUAL,
-      this.binaryExpressionParselet.bind(this),
+      this.binaryParselet.bind(this),
     );
     this.registerLeftDenotationParselet(
       TokenType.LESS,
-      this.binaryExpressionParselet.bind(this),
+      this.binaryParselet.bind(this),
     );
     this.registerLeftDenotationParselet(
       TokenType.LESS_EQUAL,
-      this.binaryExpressionParselet.bind(this),
+      this.binaryParselet.bind(this),
     );
     this.registerLeftDenotationParselet(
       TokenType.MINUS,
-      this.binaryExpressionParselet.bind(this),
+      this.binaryParselet.bind(this),
     );
     this.registerLeftDenotationParselet(
       TokenType.PLUS,
-      this.binaryExpressionParselet.bind(this),
+      this.binaryParselet.bind(this),
     );
     this.registerLeftDenotationParselet(
       TokenType.SLASH,
-      this.binaryExpressionParselet.bind(this),
+      this.binaryParselet.bind(this),
     );
     this.registerLeftDenotationParselet(
       TokenType.STAR,
-      this.binaryExpressionParselet.bind(this),
+      this.binaryParselet.bind(this),
     );
     this.registerLeftDenotationParselet(
       TokenType.OR,
-      this.binaryExpressionParselet.bind(this),
+      this.binaryParselet.bind(this),
     );
     this.registerLeftDenotationParselet(
       TokenType.AND,
-      this.binaryExpressionParselet.bind(this),
+      this.binaryParselet.bind(this),
     );
   }
 
@@ -189,7 +192,7 @@ export default class Parser {
   }
 
   // AKA prefixParselet.
-  private unaryExpressionParselet(): Expression {
+  private unaryExpression(): Expression {
     // Store the current token.
     const operatorToken = this.currentToken();
 
@@ -208,7 +211,7 @@ export default class Parser {
     return new UnaryExpression(operatorToken, rightExpression);
   }
 
-  private binaryExpressionParselet(leftExpression: Expression): Expression {
+  private binaryParselet(leftExpression: Expression): Expression {
     // Store the operator token.
     const operatorToken = this.currentToken();
 
