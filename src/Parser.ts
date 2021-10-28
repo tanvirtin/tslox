@@ -1,4 +1,3 @@
-// TODO: Add assignment expression logic
 import {
   BlockStatement,
   ExpressionStatement,
@@ -85,14 +84,9 @@ export default class Parser {
       this.literalParselet.bind(this),
     );
     this.registerNullDenotationParselet(
-      TokenType.EQUAL,
-      this.literalParselet.bind(this),
-    );
-    this.registerNullDenotationParselet(
       TokenType.IDENTIFIER,
       this.variableParselet.bind(this),
     );
-
     // Grouping expression
     this.registerNullDenotationParselet(
       TokenType.LEFT_PAREN,
@@ -180,8 +174,14 @@ export default class Parser {
   }
 
   private variableParselet(): Expression {
-    const token: Token = this.currentToken();
-    return new IdentifierExpression(token);
+    const currentToken: Token = this.currentToken();
+    const nextToken: Token = this.nextToken();
+    if (nextToken.type === TokenType.EQUAL) {
+      this.advanceToken();
+      this.advanceToken();
+      return new AssignmentExpression(currentToken, nextToken, this.expression(Precedence.LOWEST))
+    }
+    return new IdentifierExpression(currentToken);
   }
 
   private groupingParselet(): Expression {
@@ -229,6 +229,10 @@ export default class Parser {
     const rightExpression = this.expression(operatorPrecedence);
 
     return new BinaryExpression(leftExpression, operatorToken, rightExpression);
+  }
+
+  private previousToken(): Token {
+    return this.tokens[this.cursor - 1];
   }
 
   private currentToken(): Token {
