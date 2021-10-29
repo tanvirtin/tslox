@@ -1,4 +1,3 @@
-// TODO: Fix while loops
 import {
   BlockStatement,
   ExpressionStatement,
@@ -427,6 +426,7 @@ export default class Parser {
   whileStatement(): Statement {
     // NOTE** - Parenthesis are optional for declaring conditions in an if statement.
     const condition: Expression = this.expression(Precedence.LOWEST);
+    this.advanceToken();
     const body: Statement = this.statement();
     return new WhileStatement(condition, body);
   }
