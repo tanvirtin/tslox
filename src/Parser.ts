@@ -1,3 +1,5 @@
+// TODO: Fix conditionals
+// TODO: Fix while loops
 import {
   BlockStatement,
   ExpressionStatement,

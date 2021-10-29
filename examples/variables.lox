@@ -1,5 +1,5 @@
 var a = 3;
 var b = 3;
 print a + b;
-var c;
+var c = 1;
 print a + c;
