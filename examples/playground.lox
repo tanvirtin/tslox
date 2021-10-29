@@ -1,3 +1,5 @@
-var a = 3;
-var b = 3;
-print a + b;
+if true == false {
+    print true;
+} else {
+    print false;
+}

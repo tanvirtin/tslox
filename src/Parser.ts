@@ -373,7 +373,10 @@ export default class Parser {
       throw new Error("No expression provided for the expression statement");
     }
     this.advanceToken();
-    this.consumeCurrentToken(TokenType.SEMICOLON, 'Expected ";" after expression');
+    // We optionally consume the semi colon, this is because in some places the ";"
+    // might be optional, for example in if statements, we don't need to do if (); {}
+    // we can do if () {}
+    this.matchCurrentToken(TokenType.SEMICOLON)
     return new ExpressionStatement(expression);
   }
 
@@ -413,6 +416,7 @@ export default class Parser {
   ifStatement(): Statement {
     // NOTE** - Parenthesis are optional for declaring conditions in an if statement.
     const condition: Expression = this.expression(Precedence.LOWEST);
+    this.advanceToken();
     const thenBranchStatement: Statement = this.statement();
     let elseBranchStatement;
     if (this.matchCurrentToken(TokenType.ELSE)) {
