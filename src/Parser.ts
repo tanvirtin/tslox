@@ -8,12 +8,12 @@ import {
   WhileStatement,
 } from "./Statement.ts";
 import {
+  AssignmentExpression,
   BinaryExpression,
   Expression,
+  IdentifierExpression,
   LiteralExpression,
   UnaryExpression,
-  IdentifierExpression,
-  AssignmentExpression,
 } from "./Expression.ts";
 import TokenType from "./TokenType.ts";
 import Token from "./Token.ts";
@@ -57,7 +57,7 @@ export default class Parser {
     [TokenType.MINUS]: Precedence.TERM,
     [TokenType.SLASH]: Precedence.FACTOR,
     [TokenType.STAR]: Precedence.FACTOR,
-  }
+  };
 
   constructor(tokens: Token[]) {
     this.tokens = tokens;
@@ -91,16 +91,16 @@ export default class Parser {
     this.registerNullDenotationParselet(
       TokenType.LEFT_PAREN,
       this.groupingParselet.bind(this),
-    )
+    );
 
     // Operators with no left expressions.
     this.registerNullDenotationParselet(
       TokenType.MINUS,
-      this.unaryExpression.bind(this),
+      this.unaryParselet.bind(this),
     );
     this.registerNullDenotationParselet(
       TokenType.BANG,
-      this.unaryExpression.bind(this),
+      this.unaryParselet.bind(this),
     );
 
     // Oeprators with left expressions.
@@ -179,7 +179,11 @@ export default class Parser {
     if (nextToken.type === TokenType.EQUAL) {
       this.advanceToken();
       this.advanceToken();
-      return new AssignmentExpression(currentToken, nextToken, this.expression(Precedence.LOWEST))
+      return new AssignmentExpression(
+        currentToken,
+        nextToken,
+        this.expression(Precedence.LOWEST),
+      );
     }
     return new IdentifierExpression(currentToken);
   }
@@ -189,14 +193,17 @@ export default class Parser {
     this.advanceToken();
     const expression = this.expression(Precedence.LOWEST);
     // We have to make sure that the next token is actually a ")".
-    this.assertNextToken(TokenType.RIGHT_BRACE, `Expected ")" after grouping expression got ${this.nextToken().lexeme} instead`);
+    this.assertNextToken(
+      TokenType.RIGHT_BRACE,
+      `Expected ")" after grouping expression got ${this.nextToken().lexeme} instead`,
+    );
     // We advance the token again because we are expecting the next token to be ")".
     this.advanceToken();
     return expression;
   }
 
   // AKA prefixParselet.
-  private unaryExpression(): Expression {
+  private unaryParselet(): Expression {
     // Store the current token.
     const operatorToken = this.currentToken();
 
@@ -220,7 +227,9 @@ export default class Parser {
     const operatorToken = this.currentToken();
 
     // Before we advance the token we also need to get the operator precedence.
-    const operatorPrecedence: number = this.getTokenPrecedence(this.currentToken())
+    const operatorPrecedence: number = this.getTokenPrecedence(
+      this.currentToken(),
+    );
 
     // After storing the current token which is the operator, we move to the next token.
     this.advanceToken();
@@ -361,7 +370,10 @@ export default class Parser {
       throw new Error("No expression provided for the print statement");
     }
     this.advanceToken();
-    this.consumeCurrentToken(TokenType.SEMICOLON, 'Expected ";" after expression');
+    this.consumeCurrentToken(
+      TokenType.SEMICOLON,
+      'Expected ";" after expression',
+    );
     return new PrintStatement(expression);
   }
 
@@ -374,7 +386,7 @@ export default class Parser {
     // We optionally consume the semi colon, this is because in some places the ";"
     // might be optional, for example in if statements, we don't need to do if (); {}
     // we can do if () {}
-    this.matchCurrentToken(TokenType.SEMICOLON)
+    this.matchCurrentToken(TokenType.SEMICOLON);
     return new ExpressionStatement(expression);
   }
 
@@ -392,7 +404,10 @@ export default class Parser {
       throw new Error("No expression provided for the expression statement");
     }
     this.advanceToken();
-    this.consumeCurrentToken(TokenType.SEMICOLON, 'Expected ";" after expression');
+    this.consumeCurrentToken(
+      TokenType.SEMICOLON,
+      'Expected ";" after expression',
+    );
     return new VariableStatement(name, expression);
   }
 
@@ -402,7 +417,9 @@ export default class Parser {
     // Until we haven't encountered a right brace or we have not reached the end of all tokens,
     // we will loop through the tokens and add all variable statements inside the list of statements.
     // Block for now will contain a series of statements.
-    while (!this.checkCurrentToken(TokenType.RIGHT_BRACE) && !this.endOfToken()) {
+    while (
+      !this.checkCurrentToken(TokenType.RIGHT_BRACE) && !this.endOfToken()
+    ) {
       statements.push(this.declaration());
     }
     // We will always expect a RIGHT_BRACE token to end a block.
@@ -465,7 +482,7 @@ export default class Parser {
     // The while loop kicks start of the scavenging of tokens.
     // NOTE**: this.cursor only progresses within the this.expression call and sub calls.
     while (!this.endOfToken()) {
-      const statement = this.declaration()
+      const statement = this.declaration();
       statements.push(statement);
     }
     return statements;
