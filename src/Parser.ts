@@ -330,8 +330,8 @@ export default class Parser {
     // for out next token, which can be an left denotation, which requires a left expression.
     let leftExpression = nullDenotationParselet();
 
-    // TODO: Right now any token we encounter without a precedence associated with it will prevent the loop from being entered.
-    //       This mechanism should allow us to automatically leave this function.
+    // Right now any token we encounter without a precedence associated with it will prevent the loop from being entered.
+    // This mechanism should allow us to automatically leave this function.
     while (
       !this.endOfToken() &&
       // IMPORTANT: Higher the precedence the higher the binding power. For example 2 + 5 * 2, results in (2 + (5 * 2)) and not ((2 + 5) * 2) because "*" has
