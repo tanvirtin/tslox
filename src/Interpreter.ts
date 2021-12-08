@@ -11,9 +11,9 @@ import {
 import {
   AssignmentExpression,
   BinaryExpression,
+  IdentifierExpression,
   LiteralExpression,
   UnaryExpression,
-  IdentifierExpression,
 } from "./Expression.ts";
 
 // Interpreter is really a visitor for the expression nodes of the abstract syntax tree.

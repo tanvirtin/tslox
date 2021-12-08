@@ -104,8 +104,8 @@ export default class Tokenizer {
       "while": TokenType.WHILE,
     };
 
-    const truthy: Record<string, { literal: boolean, tokenType: TokenType }> = {
-      "true": { 
+    const truthy: Record<string, { literal: boolean; tokenType: TokenType }> = {
+      "true": {
         literal: true,
         tokenType: TokenType.TRUE,
       },
@@ -115,9 +115,9 @@ export default class Tokenizer {
       },
       "nil": {
         literal: false,
-        tokenType: TokenType.NIL
+        tokenType: TokenType.NIL,
       },
-    }
+    };
 
     // If text is actually a keyword we return what we find from the map.
     // NOTE: This means that identifiers can either be variables or keywords defined within the system.
