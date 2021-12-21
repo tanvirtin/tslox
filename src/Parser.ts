@@ -18,17 +18,11 @@ import {
 import TokenType from "./TokenType.ts";
 import Token from "./Token.ts";
 
-// IMPORTANT: Higher the precedence the higher the binding power. For example 2 + 5 * 2, results in (2 + (5 * 2)) and not ((2 + 5) * 2) because "*" has
-//            a precedence of 5 in comparison to "+" which is a 4. This means "*" with it's higher binding power pulls the expression 5 away from "+".
-//            This is important, higher precedence on a BINARY/LEFT DENOTATION (LED) operator will increase it's LEFT binding power. This is why we give
-//            Prefix expressions (null denotation) such high precedence, so that the binary expression can trump their precedence and their left binding
-//            power will always be less.
-
-// - A “null denotation”, short nud, (most notably, prefix operators).
-// - A “left denotation”, short led, (most notably, infix and postfix operators).
+// - A “left denotation”, short led, (most notably, infix (a.k.a binary) and postfix operators).
+// - A “null denotation”, short nud, (can be anything not a left denotation, prefix operators, numbers, strings, identifiers, etc).
 
 type NullDenotationParselet = () => Expression;
-// Left denotation parselet will always take a left expression. It will have a higher binding power.
+// Left denotation parselet will always take a left expression (binary will always have a left hand side or in the case of 1++ left expression for ++ is 1).
 type LeftDenotationParselet = (leftExpression: Expression) => Expression;
 
 export enum Precedence {
@@ -237,6 +231,10 @@ export default class Parser {
     // We call this.expression which kick starts a recursive call and this function will pend in the stack for the recursive calls to complete.
     const rightExpression = this.expression(operatorPrecedence);
 
+    // An interesting thing to think about is the fact that, after the recursive call to this.expression, the internal
+    // pointer to the list of tokens (this.cursor) may not be in the same place, because a lot might have happened
+    // within the recursive call.
+
     return new BinaryExpression(leftExpression, operatorToken, rightExpression);
   }
 
@@ -312,7 +310,7 @@ export default class Parser {
 
   expression(currentPrecedence: number = Precedence.LOWEST): Expression {
     // We store the current token. We will always assume that the initial token will be a null denotation token.
-    // This includes a number, identifier, prefix operator etc.
+    // Which can be a number, identifier, prefix operator, etc.
     const currentToken = this.currentToken();
 
     // We immediately retrieve the null denotation. Null denotation parsers will be any expression which does not require a left expression.
@@ -326,12 +324,13 @@ export default class Parser {
       );
     }
 
-    // This is our potential expression we return. It can also be our left expression
-    // for out next token, which can be an left denotation, which requires a left expression.
+    // This may be the expression we return. Remember the expression we are parsing could just be a number.
+    // It can also be the left expression for a binary operator coming up next which has it's right expression pending.
     let leftExpression = nullDenotationParselet();
 
     // Right now any token we encounter without a precedence associated with it will prevent the loop from being entered.
-    // This mechanism should allow us to automatically leave this function.
+    // This mechanism should allow us to automatically leave this loop.
+    // If we also encounter a precedence greater than the precedence passed to us we (technically our previous operator), we exit the loop.
     while (
       !this.endOfToken() &&
       // IMPORTANT: Higher the precedence the higher the binding power. For example 2 + 5 * 2, results in (2 + (5 * 2)) and not ((2 + 5) * 2) because "*" has
@@ -342,9 +341,11 @@ export default class Parser {
       currentPrecedence <
         this.getTokenPrecedence(this.nextToken())
     ) {
-      // We advance the token here, this enables us to get the next token that we were checking up in the conditional.
+      // If we are at this line, it means we actually encountered an operator with a greater precedence.
+      // Which means we will have to eat the token and parse more expressions.
       this.advanceToken();
 
+      // In this program we just have one type of left denotation parselet which is a binary expression. Don't get confused by the naming.
       const leftDenotationParselet =
         this.leftDenotationParslets[this.currentToken().type];
 
@@ -354,7 +355,8 @@ export default class Parser {
         );
       }
 
-      // We replace the old left expression with the new computed one.
+      // We pass our current left expression to be the left expression for the new binary operator and get back a
+      // new left expression. We will check again in this loop if the next token is an operator with a greater precedence.
       leftExpression = leftDenotationParselet(leftExpression);
     }
 
